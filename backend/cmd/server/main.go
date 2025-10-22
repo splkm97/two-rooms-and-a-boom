@@ -38,10 +38,13 @@ func main() {
 	// Initialize services
 	roomService := services.NewRoomService(roomStore)
 	playerService := services.NewPlayerService(roomStore)
+	gameService := services.NewGameService(roomStore)
+	gameService.SetHub(hub)
 
 	// Initialize handlers
 	roomHandler := handlers.NewRoomHandler(roomService)
 	playerHandler := handlers.NewPlayerHandler(playerService)
+	gameHandler := handlers.NewGameHandler(gameService)
 	wsHandler := handlers.NewWebSocketHandler(hub, roomService, playerService)
 
 	// Health check endpoint
@@ -52,6 +55,8 @@ func main() {
 	})
 
 	// T046: Wire all US1 routes to Gin router
+	// T076: Wire US2 routes to Gin router
+	// T092: Wire US3 routes to Gin router
 	v1 := r.Group("/api/v1")
 	{
 		// Room routes
@@ -61,6 +66,10 @@ func main() {
 		// Player routes
 		v1.POST("/rooms/:roomCode/players", playerHandler.JoinRoom)
 		v1.PATCH("/rooms/:roomCode/players/:playerId/nickname", playerHandler.UpdateNickname)
+
+		// Game routes (US2, US3)
+		v1.POST("/rooms/:roomCode/game/start", gameHandler.StartGame)
+		v1.POST("/rooms/:roomCode/game/reset", gameHandler.ResetGame)
 	}
 
 	// WebSocket route

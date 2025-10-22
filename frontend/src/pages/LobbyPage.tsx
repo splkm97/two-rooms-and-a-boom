@@ -7,7 +7,7 @@ import { Layout } from '../components/Layout';
 import { PlayerList } from '../components/PlayerList';
 import { NicknameEditor } from '../components/NicknameEditor';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { getRoom, joinRoom, updateNickname } from '../services/api';
+import { getRoom, joinRoom, updateNickname, startGame } from '../services/api';
 import type { Player, Room } from '../types/game.types';
 
 export function LobbyPage() {
@@ -18,6 +18,7 @@ export function LobbyPage() {
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isStarting, setIsStarting] = useState(false);
 
   const { isConnected, lastMessage } = useWebSocket(roomCode || '');
 
@@ -167,6 +168,28 @@ export function LobbyPage() {
     navigate('/');
   };
 
+  // T084: Add "게임 시작" button handler (visible only to room owner)
+  // T085: Integrate GAME_STARTED WebSocket message (already implemented above)
+  const handleStartGame = async () => {
+    if (!roomCode) return;
+
+    // Validate minimum player count
+    if (!room || room.players.length < 6) {
+      alert('게임을 시작하려면 최소 6명의 플레이어가 필요합니다');
+      return;
+    }
+
+    setIsStarting(true);
+    try {
+      await startGame(roomCode);
+      // Navigation will happen automatically via GAME_STARTED WebSocket message
+    } catch (err: any) {
+      console.error('Failed to start game:', err);
+      alert(err.message || '게임 시작에 실패했습니다');
+      setIsStarting(false);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -265,21 +288,22 @@ export function LobbyPage() {
 
           {currentPlayer.isOwner && (
             <button
-              disabled
+              onClick={handleStartGame}
+              disabled={isStarting || room.players.length < 6}
               style={{
                 flex: 1,
                 padding: '0.75rem',
                 fontSize: '1rem',
-                backgroundColor: '#28a745',
+                backgroundColor: room.players.length < 6 ? '#6c757d' : '#28a745',
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
-                cursor: 'not-allowed',
-                opacity: 0.6,
+                cursor: room.players.length < 6 || isStarting ? 'not-allowed' : 'pointer',
+                opacity: room.players.length < 6 || isStarting ? 0.6 : 1,
               }}
-              title="역할 배분 기능은 Phase 4에서 구현됩니다"
+              title={room.players.length < 6 ? '최소 6명의 플레이어가 필요합니다' : '게임 시작'}
             >
-              게임 시작 (준비 중)
+              {isStarting ? '시작 중...' : `게임 시작 (${room.players.length}/${room.maxPlayers})`}
             </button>
           )}
         </div>

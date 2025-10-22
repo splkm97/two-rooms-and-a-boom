@@ -28,6 +28,7 @@ export interface Player {
 
 // Game session definition
 export interface GameSession {
+  id: string;
   roomCode: string;
   redTeam: Player[];
   blueTeam: Player[];

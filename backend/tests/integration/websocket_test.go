@@ -363,3 +363,342 @@ func TestWebSocketBroadcasts(t *testing.T) {
 		// Expecting timeout error, which is correct behavior
 	})
 }
+
+// T067: Integration test for GAME_STARTED and ROLE_ASSIGNED WebSocket messages
+func TestWebSocketGameMessages(t *testing.T) {
+	t.Run("broadcast GAME_STARTED when game starts", func(t *testing.T) {
+		server, roomStore, hub := setupWebSocketTestServer()
+		defer server.Close()
+
+		// Create room with 6 players
+		room := &models.Room{
+			Code:       services.GenerateRoomCode(),
+			Status:     models.RoomStatusWaiting,
+			MaxPlayers: 10,
+			Players:    []*models.Player{},
+		}
+		for i := 1; i <= 6; i++ {
+			room.Players = append(room.Players, &models.Player{
+				ID:          string(rune('A' + i - 1)),
+				Nickname:    string(rune('플' + i - 1)),
+				IsAnonymous: true,
+				RoomCode:    room.Code,
+				IsOwner:     i == 1,
+			})
+		}
+		roomStore.Create(room)
+
+		// Connect two clients
+		conn1, err := connectWebSocket(server.URL, room.Code)
+		if err != nil {
+			t.Fatalf("Failed to connect first WebSocket: %v", err)
+		}
+		defer conn1.Close()
+
+		time.Sleep(100 * time.Millisecond)
+
+		conn2, err := connectWebSocket(server.URL, room.Code)
+		if err != nil {
+			t.Fatalf("Failed to connect second WebSocket: %v", err)
+		}
+		defer conn2.Close()
+
+		time.Sleep(100 * time.Millisecond)
+
+		// Simulate GAME_STARTED broadcast
+		gameStartedMsg := ws.Message{
+			Type: "GAME_STARTED",
+			Payload: map[string]interface{}{
+				"roomCode":  room.Code,
+				"sessionId": "test-session-id",
+			},
+		}
+
+		// Broadcast to room
+		hub.Broadcast(room.Code, gameStartedMsg)
+
+		// Both clients should receive GAME_STARTED
+		msg1, err := readWSMessage(conn1, 2*time.Second)
+		if err != nil {
+			t.Fatalf("Failed to read GAME_STARTED on conn1: %v", err)
+		}
+
+		if msg1.Type != "GAME_STARTED" {
+			t.Errorf("Expected GAME_STARTED on conn1, got %s", msg1.Type)
+		}
+
+		msg2, err := readWSMessage(conn2, 2*time.Second)
+		if err != nil {
+			t.Fatalf("Failed to read GAME_STARTED on conn2: %v", err)
+		}
+
+		if msg2.Type != "GAME_STARTED" {
+			t.Errorf("Expected GAME_STARTED on conn2, got %s", msg2.Type)
+		}
+
+		// Verify payload contains sessionId
+		payload1, ok := msg1.Payload.(map[string]interface{})
+		if !ok {
+			t.Fatal("Expected payload to be a map")
+		}
+
+		if _, ok := payload1["sessionId"]; !ok {
+			t.Error("Expected sessionId in GAME_STARTED payload")
+		}
+	})
+
+	t.Run("unicast ROLE_ASSIGNED to individual player", func(t *testing.T) {
+		server, roomStore, hub := setupWebSocketTestServer()
+		defer server.Close()
+
+		// Create room with player
+		room := &models.Room{
+			Code:       services.GenerateRoomCode(),
+			Status:     models.RoomStatusWaiting,
+			MaxPlayers: 10,
+			Players: []*models.Player{
+				{
+					ID:          "player1",
+					Nickname:    "플레이어1",
+					IsAnonymous: true,
+					RoomCode:    "",
+					IsOwner:     true,
+				},
+			},
+		}
+		room.Players[0].RoomCode = room.Code
+		roomStore.Create(room)
+
+		// Connect client
+		conn1, err := connectWebSocket(server.URL, room.Code)
+		if err != nil {
+			t.Fatalf("Failed to connect WebSocket: %v", err)
+		}
+		defer conn1.Close()
+
+		time.Sleep(100 * time.Millisecond)
+
+		// Simulate ROLE_ASSIGNED unicast
+		roleAssignedMsg := ws.Message{
+			Type: "ROLE_ASSIGNED",
+			Payload: map[string]interface{}{
+				"playerId":  "player1",
+				"role":      "PRESIDENT",
+				"team":      "BLUE",
+				"roomColor": "BLUE_ROOM",
+			},
+		}
+
+		// Unicast to specific player (in actual implementation, this would be called from game service)
+		hub.Unicast(room.Code, "player1", roleAssignedMsg)
+
+		// Client should receive ROLE_ASSIGNED
+		msg, err := readWSMessage(conn1, 2*time.Second)
+		if err != nil {
+			t.Fatalf("Failed to read ROLE_ASSIGNED: %v", err)
+		}
+
+		if msg.Type != "ROLE_ASSIGNED" {
+			t.Errorf("Expected ROLE_ASSIGNED, got %s", msg.Type)
+		}
+
+		// Verify payload contains role information
+		payload, ok := msg.Payload.(map[string]interface{})
+		if !ok {
+			t.Fatal("Expected payload to be a map")
+		}
+
+		if role, ok := payload["role"].(string); !ok || role == "" {
+			t.Error("Expected role in ROLE_ASSIGNED payload")
+		}
+
+		if team, ok := payload["team"].(string); !ok || team == "" {
+			t.Error("Expected team in ROLE_ASSIGNED payload")
+		}
+
+		if roomColor, ok := payload["roomColor"].(string); !ok || roomColor == "" {
+			t.Error("Expected roomColor in ROLE_ASSIGNED payload")
+		}
+	})
+
+	t.Run("ROLE_ASSIGNED only goes to specific player", func(t *testing.T) {
+		server, roomStore, hub := setupWebSocketTestServer()
+		defer server.Close()
+
+		// Create room with two players
+		room := &models.Room{
+			Code:       services.GenerateRoomCode(),
+			Status:     models.RoomStatusWaiting,
+			MaxPlayers: 10,
+			Players: []*models.Player{
+				{
+					ID:          "player1",
+					Nickname:    "플레이어1",
+					IsAnonymous: true,
+					RoomCode:    "",
+					IsOwner:     true,
+				},
+				{
+					ID:          "player2",
+					Nickname:    "플레이어2",
+					IsAnonymous: true,
+					RoomCode:    "",
+					IsOwner:     false,
+				},
+			},
+		}
+		room.Players[0].RoomCode = room.Code
+		room.Players[1].RoomCode = room.Code
+		roomStore.Create(room)
+
+		// Connect two clients
+		conn1, err := connectWebSocket(server.URL, room.Code)
+		if err != nil {
+			t.Fatalf("Failed to connect first WebSocket: %v", err)
+		}
+		defer conn1.Close()
+
+		time.Sleep(100 * time.Millisecond)
+
+		conn2, err := connectWebSocket(server.URL, room.Code)
+		if err != nil {
+			t.Fatalf("Failed to connect second WebSocket: %v", err)
+		}
+		defer conn2.Close()
+
+		time.Sleep(100 * time.Millisecond)
+
+		// Clear PLAYER_JOINED messages
+		readWSMessage(conn1, 500*time.Millisecond)
+
+		// Unicast ROLE_ASSIGNED to player2 only
+		roleAssignedMsg := ws.Message{
+			Type: "ROLE_ASSIGNED",
+			Payload: map[string]interface{}{
+				"playerId":  "player2",
+				"role":      "BOMBER",
+				"team":      "RED",
+				"roomColor": "RED_ROOM",
+			},
+		}
+
+		hub.Unicast(room.Code, "player2", roleAssignedMsg)
+
+		// conn2 should receive ROLE_ASSIGNED
+		msg2, err := readWSMessage(conn2, 2*time.Second)
+		if err != nil {
+			t.Fatalf("Failed to read ROLE_ASSIGNED on conn2: %v", err)
+		}
+
+		if msg2.Type != "ROLE_ASSIGNED" {
+			t.Errorf("Expected ROLE_ASSIGNED on conn2, got %s", msg2.Type)
+		}
+
+		// conn1 should NOT receive ROLE_ASSIGNED (it's a unicast)
+		conn1.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+		var dummyMsg json.RawMessage
+		err = conn1.ReadJSON(&dummyMsg)
+		if err == nil {
+			t.Error("conn1 should not receive ROLE_ASSIGNED meant for player2")
+		}
+		// Expecting timeout error, which is correct behavior for unicast
+	})
+
+	// T088: Integration test for GAME_RESET WebSocket broadcast
+	t.Run("broadcast GAME_RESET when game is reset", func(t *testing.T) {
+		server, roomStore, hub := setupWebSocketTestServer()
+		defer server.Close()
+
+		// Create room with game in progress
+		room := &models.Room{
+			Code:       services.GenerateRoomCode(),
+			Status:     models.RoomStatusInProgress,
+			MaxPlayers: 10,
+			Players:    []*models.Player{},
+			GameSession: &models.GameSession{
+				ID:       "session-123",
+				RoomCode: "",
+			},
+		}
+		room.GameSession.RoomCode = room.Code
+
+		// Add players with roles assigned
+		for i := 1; i <= 6; i++ {
+			role := &models.Role{
+				ID:          "ROLE" + string(rune('0'+i)),
+				Name:        "역할" + string(rune('0'+i)),
+				Description: "설명",
+				Team:        models.TeamRed,
+			}
+			player := &models.Player{
+				ID:          string(rune('A' + i - 1)),
+				Nickname:    "플레이어" + string(rune('0'+i)),
+				IsAnonymous: true,
+				RoomCode:    room.Code,
+				IsOwner:     i == 1,
+				Role:        role,
+				Team:        models.TeamRed,
+				CurrentRoom: models.RedRoom,
+			}
+			room.Players = append(room.Players, player)
+		}
+		roomStore.Create(room)
+
+		// Connect two clients
+		conn1, err := connectWebSocket(server.URL, room.Code)
+		if err != nil {
+			t.Fatalf("Failed to connect first WebSocket: %v", err)
+		}
+		defer conn1.Close()
+
+		time.Sleep(100 * time.Millisecond)
+
+		conn2, err := connectWebSocket(server.URL, room.Code)
+		if err != nil {
+			t.Fatalf("Failed to connect second WebSocket: %v", err)
+		}
+		defer conn2.Close()
+
+		time.Sleep(100 * time.Millisecond)
+
+		// Simulate GAME_RESET broadcast
+		gameResetMsg := ws.Message{
+			Type: "GAME_RESET",
+			Payload: map[string]interface{}{
+				"roomCode": room.Code,
+			},
+		}
+
+		// Broadcast to room
+		hub.Broadcast(room.Code, gameResetMsg)
+
+		// Both clients should receive GAME_RESET
+		msg1, err := readWSMessage(conn1, 2*time.Second)
+		if err != nil {
+			t.Fatalf("Failed to read GAME_RESET on conn1: %v", err)
+		}
+
+		if msg1.Type != "GAME_RESET" {
+			t.Errorf("Expected GAME_RESET on conn1, got %s", msg1.Type)
+		}
+
+		msg2, err := readWSMessage(conn2, 2*time.Second)
+		if err != nil {
+			t.Fatalf("Failed to read GAME_RESET on conn2: %v", err)
+		}
+
+		if msg2.Type != "GAME_RESET" {
+			t.Errorf("Expected GAME_RESET on conn2, got %s", msg2.Type)
+		}
+
+		// Verify payload contains roomCode
+		payload1, ok := msg1.Payload.(map[string]interface{})
+		if !ok {
+			t.Fatal("Expected payload to be a map")
+		}
+
+		if _, ok := payload1["roomCode"]; !ok {
+			t.Error("Expected roomCode in GAME_RESET payload")
+		}
+	})
+}

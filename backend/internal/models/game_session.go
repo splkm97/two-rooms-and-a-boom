@@ -4,6 +4,7 @@ import "time"
 
 // GameSession represents active game state
 type GameSession struct {
+	ID              string    `json:"id"`              // Session ID
 	RoomCode        string    `json:"roomCode"`        // Associated room
 	RedTeam         []*Player `json:"redTeam"`         // Red team members
 	BlueTeam        []*Player `json:"blueTeam"`        // Blue team members

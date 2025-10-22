@@ -193,3 +193,62 @@ func (h *Hub) BroadcastNicknameChanged(roomCode string, payload *NicknameChanged
 	h.BroadcastToRoom(roomCode, data)
 	return nil
 }
+
+// T074: Implement GAME_STARTED broadcast
+func (h *Hub) BroadcastGameStarted(roomCode string, payload interface{}) error {
+	msg, err := NewMessage(MessageGameStarted, payload)
+	if err != nil {
+		return err
+	}
+
+	data, err := msg.Marshal()
+	if err != nil {
+		return err
+	}
+
+	h.BroadcastToRoom(roomCode, data)
+	return nil
+}
+
+// T075: Implement ROLE_ASSIGNED unicast (to individual player)
+func (h *Hub) SendRoleAssigned(roomCode, playerID string, payload interface{}) error {
+	msg, err := NewMessage(MessageRoleAssigned, payload)
+	if err != nil {
+		return err
+	}
+
+	data, err := msg.Marshal()
+	if err != nil {
+		return err
+	}
+
+	h.SendToClient(roomCode, playerID, data)
+	return nil
+}
+
+// T091: Implement GAME_RESET broadcast
+func (h *Hub) BroadcastGameReset(roomCode string, payload interface{}) error {
+	msg, err := NewMessage(MessageGameReset, payload)
+	if err != nil {
+		return err
+	}
+
+	data, err := msg.Marshal()
+	if err != nil {
+		return err
+	}
+
+	h.BroadcastToRoom(roomCode, data)
+	return nil
+}
+
+// Broadcast and Unicast wrappers for interface{} payloads (for service layer)
+func (h *Hub) Broadcast(roomCode string, message Message) {
+	data, _ := message.Marshal()
+	h.BroadcastToRoom(roomCode, data)
+}
+
+func (h *Hub) Unicast(roomCode, playerID string, message Message) {
+	data, _ := message.Marshal()
+	h.SendToClient(roomCode, playerID, data)
+}

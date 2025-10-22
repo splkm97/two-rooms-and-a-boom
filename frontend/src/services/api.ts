@@ -99,3 +99,25 @@ export async function updateNickname(
     { nickname }
   );
 }
+
+// T080: Implement startGame API function
+export interface StartGameResponse extends CreateRoomResponse {
+  gameSession: {
+    id: string;
+    roomCode: string;
+    startedAt: string;
+  };
+}
+
+export async function startGame(roomCode: string): Promise<StartGameResponse> {
+  return api.post<StartGameResponse>(`/api/v1/rooms/${roomCode}/game/start`);
+}
+
+// T094: Implement resetGame API function
+export interface ResetGameResponse extends CreateRoomResponse {
+  gameSession: null;
+}
+
+export async function resetGame(roomCode: string): Promise<ResetGameResponse> {
+  return api.post<ResetGameResponse>(`/api/v1/rooms/${roomCode}/game/reset`);
+}

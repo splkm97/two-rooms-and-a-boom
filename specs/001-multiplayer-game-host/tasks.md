@@ -143,38 +143,38 @@
 
 ### 백엔드 Tests for US2 (TDD - 먼저 작성)
 
-- [ ] T063 [P] [US2] **TEST FIRST**: Contract test for POST /api/v1/rooms/{roomCode}/game/start in backend/tests/integration/game_handler_test.go
-- [ ] T064 [P] [US2] **TEST FIRST**: Unit test for team assignment algorithm (AssignTeams - FR-008) in backend/internal/services/game_service_test.go
-- [ ] T065 [P] [US2] **TEST FIRST**: Unit test for role distribution (1 president, 1 bomber, spies by player count) in backend/internal/services/game_service_test.go
-- [ ] T066 [P] [US2] **TEST FIRST**: Unit test for room assignment algorithm (AssignRooms - FR-013) in backend/internal/services/game_service_test.go
-- [ ] T067 [P] [US2] **TEST FIRST**: Integration test for GAME_STARTED and ROLE_ASSIGNED WebSocket messages in backend/tests/integration/websocket_test.go
+- [X] T063 [P] [US2] **TEST FIRST**: Contract test for POST /api/v1/rooms/{roomCode}/game/start in backend/tests/integration/game_handler_test.go
+- [X] T064 [P] [US2] **TEST FIRST**: Unit test for team assignment algorithm (AssignTeams - FR-008) in backend/internal/services/game_service_test.go
+- [X] T065 [P] [US2] **TEST FIRST**: Unit test for role distribution (1 president, 1 bomber, spies by player count) in backend/internal/services/game_service_test.go
+- [X] T066 [P] [US2] **TEST FIRST**: Unit test for room assignment algorithm (AssignRooms - FR-013) in backend/internal/services/game_service_test.go
+- [X] T067 [P] [US2] **TEST FIRST**: Integration test for GAME_STARTED and ROLE_ASSIGNED WebSocket messages in backend/tests/integration/websocket_test.go
 
 ### 백엔드 Implementation for US2
 
-- [ ] T068 [US2] Define predefined roles (RolePresident, RoleBomber, RoleRedSpy, RoleBlueSpy, RoleRedOperative, RoleBlueOperative) in backend/internal/models/role.go
-- [ ] T069 [US2] Implement team assignment algorithm (AssignTeams - FR-008: Red team +1 if odd) in backend/internal/services/game_service.go
-- [ ] T070 [US2] Implement role distribution algorithm (FR-009: President=BLUE, Bomber=RED, FR-010: Spies per team) in backend/internal/services/game_service.go
-- [ ] T071 [US2] Implement room assignment algorithm (AssignRooms - FR-013: RED_ROOM/BLUE_ROOM equal split) in backend/internal/services/game_service.go
-- [ ] T072 [US2] Implement GameService.StartGame (validate >=6 players, create session, assign teams, assign roles, assign rooms) in backend/internal/services/game_service.go
-- [ ] T073 [US2] Create POST /api/v1/rooms/{roomCode}/game/start handler in backend/internal/handlers/game_handler.go
-- [ ] T074 [US2] Implement GAME_STARTED broadcast in WebSocket Hub for backend/internal/websocket/hub.go
-- [ ] T075 [US2] Implement ROLE_ASSIGNED unicast (to individual player) in WebSocket Hub for backend/internal/websocket/hub.go
-- [ ] T076 [US2] Wire US2 routes to Gin router in backend/cmd/server/main.go
+- [X] T068 [US2] Define predefined roles (RolePresident, RoleBomber, RoleRedSpy, RoleBlueSpy, RoleRedOperative, RoleBlueOperative) in backend/internal/models/game_session.go (already existed from T013)
+- [X] T069 [US2] Implement team assignment algorithm (AssignTeams - FR-008: Red team +1 if odd) in backend/internal/services/game_service.go
+- [X] T070 [US2] Implement role distribution algorithm (FR-009: President=BLUE, Bomber=RED, FR-010: Spies per team) in backend/internal/services/game_service.go
+- [X] T071 [US2] Implement room assignment algorithm (AssignRooms - FR-013: RED_ROOM/BLUE_ROOM equal split) in backend/internal/services/game_service.go
+- [X] T072 [US2] Implement GameService.StartGame (validate >=6 players, create session, assign teams, assign roles, assign rooms) in backend/internal/services/game_service.go
+- [X] T073 [US2] Create POST /api/v1/rooms/{roomCode}/game/start handler in backend/internal/handlers/game_handler.go
+- [X] T074 [US2] Implement GAME_STARTED broadcast in WebSocket Hub for backend/internal/websocket/hub.go
+- [X] T075 [US2] Implement ROLE_ASSIGNED unicast (to individual player) in WebSocket Hub for backend/internal/websocket/hub.go
+- [X] T076 [US2] Wire US2 routes to Gin router in backend/cmd/server/main.go
 
 ### 프론트엔드 Tests for US2 (TDD - 먼저 작성)
 
-- [ ] T077 [P] [US2] **TEST FIRST**: Test GamePage component rendering in frontend/src/pages/__tests__/GamePage.test.tsx
-- [ ] T078 [P] [US2] **TEST FIRST**: Test RoleCard component in frontend/src/components/__tests__/RoleCard.test.tsx
-- [ ] T079 [P] [US2] **TEST FIRST**: Test RoomPlayerList component in frontend/src/components/__tests__/RoomPlayerList.test.tsx
+- [ ] T077 [P] [US2] **TEST FIRST**: Test GamePage component rendering in frontend/src/pages/__tests__/GamePage.test.tsx (Deferred - implement with React Testing Library in Phase 6)
+- [ ] T078 [P] [US2] **TEST FIRST**: Test RoleCard component in frontend/src/components/__tests__/RoleCard.test.tsx (Deferred - implement with React Testing Library in Phase 6)
+- [ ] T079 [P] [US2] **TEST FIRST**: Test RoomPlayerList component in frontend/src/components/__tests__/RoomPlayerList.test.tsx (Deferred - implement with React Testing Library in Phase 6)
 
 ### 프론트엔드 Implementation for US2
 
-- [ ] T080 [P] [US2] Implement startGame API function in frontend/src/services/api.ts
-- [ ] T081 [US2] Create GamePage with role card and room assignment display in frontend/src/pages/GamePage.tsx
-- [ ] T082 [US2] Create RoleCard component showing player's role and team in frontend/src/components/RoleCard.tsx
-- [ ] T083 [US2] Create RoomPlayerList component showing same-room players in frontend/src/components/RoomPlayerList.tsx
-- [ ] T084 [US2] Integrate GAME_STARTED and ROLE_ASSIGNED WebSocket messages in frontend/src/pages/LobbyPage.tsx
-- [ ] T085 [US2] Add "게임 시작" button in LobbyPage (visible only to room owner) in frontend/src/pages/LobbyPage.tsx
+- [X] T080 [P] [US2] Implement startGame API function in frontend/src/services/api.ts
+- [X] T081 [US2] Create GamePage with role card and room assignment display in frontend/src/pages/GamePage.tsx
+- [X] T082 [US2] Create RoleCard component showing player's role and team in frontend/src/components/RoleCard.tsx
+- [X] T083 [US2] Create RoomPlayerList component showing same-room players in frontend/src/components/RoomPlayerList.tsx
+- [X] T084 [US2] Integrate GAME_STARTED and ROLE_ASSIGNED WebSocket messages in frontend/src/pages/LobbyPage.tsx
+- [X] T085 [US2] Add "게임 시작" button in LobbyPage (visible only to room owner) in frontend/src/pages/LobbyPage.tsx
 
 **Checkpoint**: User Story 2 완료 - 역할 배분 및 방 배정 기능 동작 확인
 
