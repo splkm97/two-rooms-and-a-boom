@@ -85,29 +85,29 @@
 
 ### 백엔드 Tests for US1 (TDD - 먼저 작성)
 
-- [ ] T027 [P] [US1] **TEST FIRST**: Contract test for POST /api/v1/rooms in backend/tests/integration/room_handler_test.go
-- [ ] T028 [P] [US1] **TEST FIRST**: Contract test for GET /api/v1/rooms/{roomCode} in backend/tests/integration/room_handler_test.go
-- [ ] T029 [P] [US1] **TEST FIRST**: Contract test for POST /api/v1/rooms/{roomCode}/players in backend/tests/integration/player_handler_test.go
-- [ ] T030 [P] [US1] **TEST FIRST**: Contract test for PATCH /api/v1/rooms/{roomCode}/players/{playerId}/nickname in backend/tests/integration/player_handler_test.go
-- [ ] T031 [P] [US1] **TEST FIRST**: Unit test for RoomService.CreateRoom in backend/internal/services/room_service_test.go
-- [ ] T032 [P] [US1] **TEST FIRST**: Unit test for PlayerService.JoinRoom in backend/internal/services/player_service_test.go
-- [ ] T033 [P] [US1] **TEST FIRST**: Unit test for PlayerService.UpdateNickname (including duplicate handling) in backend/internal/services/player_service_test.go
-- [ ] T034 [P] [US1] **TEST FIRST**: Integration test for PLAYER_JOINED/PLAYER_LEFT/NICKNAME_CHANGED WebSocket broadcasts in backend/tests/integration/websocket_test.go
+- [X] T027 [P] [US1] **TEST FIRST**: Contract test for POST /api/v1/rooms in backend/tests/integration/room_handler_test.go
+- [X] T028 [P] [US1] **TEST FIRST**: Contract test for GET /api/v1/rooms/{roomCode} in backend/tests/integration/room_handler_test.go
+- [X] T029 [P] [US1] **TEST FIRST**: Contract test for POST /api/v1/rooms/{roomCode}/players in backend/tests/integration/player_handler_test.go
+- [X] T030 [P] [US1] **TEST FIRST**: Contract test for PATCH /api/v1/rooms/{roomCode}/players/{playerId}/nickname in backend/tests/integration/player_handler_test.go
+- [X] T031 [P] [US1] **TEST FIRST**: Unit test for RoomService.CreateRoom in backend/internal/services/room_service_test.go
+- [X] T032 [P] [US1] **TEST FIRST**: Unit test for PlayerService.JoinRoom in backend/internal/services/player_service_test.go
+- [X] T033 [P] [US1] **TEST FIRST**: Unit test for PlayerService.UpdateNickname (including duplicate handling) in backend/internal/services/player_service_test.go
+- [X] T034 [P] [US1] **TEST FIRST**: Integration test for PLAYER_JOINED/PLAYER_LEFT/NICKNAME_CHANGED WebSocket broadcasts in backend/tests/integration/websocket_test.go
 
 ### 백엔드 Implementation for US1
 
-- [ ] T035 [US1] Implement RoomService.CreateRoom (generate code, create room, store) in backend/internal/services/room_service.go
-- [ ] T036 [US1] Implement PlayerService.JoinRoom (validate room, create player, add to room) in backend/internal/services/player_service.go
-- [ ] T037 [US1] Implement PlayerService.UpdateNickname (validate, check duplicates, add suffix if needed) in backend/internal/services/player_service.go
-- [ ] T038 [US1] Create POST /api/v1/rooms handler in backend/internal/handlers/room_handler.go
-- [ ] T039 [US1] Create GET /api/v1/rooms/{roomCode} handler in backend/internal/handlers/room_handler.go
-- [ ] T040 [US1] Create POST /api/v1/rooms/{roomCode}/players handler in backend/internal/handlers/player_handler.go
-- [ ] T041 [US1] Create PATCH /api/v1/rooms/{roomCode}/players/{playerId}/nickname handler in backend/internal/handlers/player_handler.go
-- [ ] T042 [US1] Create WebSocket /ws/{roomCode} handler in backend/internal/handlers/websocket_handler.go
-- [ ] T043 [US1] Implement PLAYER_JOINED broadcast in WebSocket Hub for backend/internal/websocket/hub.go
-- [ ] T044 [US1] Implement PLAYER_LEFT broadcast in WebSocket Hub for backend/internal/websocket/hub.go
-- [ ] T045 [US1] Implement NICKNAME_CHANGED broadcast in WebSocket Hub for backend/internal/websocket/hub.go
-- [ ] T046 [US1] Wire all US1 routes to Gin router in backend/cmd/server/main.go
+- [X] T035 [US1] Implement RoomService.CreateRoom (generate code, create room, store) in backend/internal/services/room_service.go
+- [X] T036 [US1] Implement PlayerService.JoinRoom (validate room, create player, add to room) in backend/internal/services/player_service.go
+- [X] T037 [US1] Implement PlayerService.UpdateNickname (validate, check duplicates, add suffix if needed) in backend/internal/services/player_service.go
+- [X] T038 [US1] Create POST /api/v1/rooms handler in backend/internal/handlers/room_handler.go
+- [X] T039 [US1] Create GET /api/v1/rooms/{roomCode} handler in backend/internal/handlers/room_handler.go
+- [X] T040 [US1] Create POST /api/v1/rooms/{roomCode}/players handler in backend/internal/handlers/player_handler.go
+- [X] T041 [US1] Create PATCH /api/v1/rooms/{roomCode}/players/{playerId}/nickname handler in backend/internal/handlers/player_handler.go
+- [X] T042 [US1] Create WebSocket /ws/{roomCode} handler in backend/internal/handlers/websocket_handler.go
+- [X] T043 [US1] Implement PLAYER_JOINED broadcast in WebSocket Hub for backend/internal/websocket/hub.go
+- [X] T044 [US1] Implement PLAYER_LEFT broadcast in WebSocket Hub for backend/internal/websocket/hub.go
+- [X] T045 [US1] Implement NICKNAME_CHANGED broadcast in WebSocket Hub for backend/internal/websocket/hub.go
+- [X] T046 [US1] Wire all US1 routes to Gin router in backend/cmd/server/main.go
 
 ### 프론트엔드 Tests for US1 (TDD - 먼저 작성)
 

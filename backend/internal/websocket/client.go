@@ -38,8 +38,19 @@ type Client struct {
 	send chan []byte
 }
 
-// readPump pumps messages from the WebSocket connection to the hub
-func (c *Client) readPump() {
+// NewClient creates a new WebSocket client
+func NewClient(hub *Hub, conn *websocket.Conn, roomCode string) *Client {
+	return &Client{
+		hub:      hub,
+		conn:     conn,
+		roomCode: roomCode,
+		playerID: "", // Will be set later when player joins
+		send:     make(chan []byte, 256),
+	}
+}
+
+// ReadPump pumps messages from the WebSocket connection to the hub
+func (c *Client) ReadPump() {
 	defer func() {
 		c.hub.unregister <- c
 		c.conn.Close()
@@ -65,8 +76,8 @@ func (c *Client) readPump() {
 	}
 }
 
-// writePump pumps messages from the hub to the WebSocket connection
-func (c *Client) writePump() {
+// WritePump pumps messages from the hub to the WebSocket connection
+func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()

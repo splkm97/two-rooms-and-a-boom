@@ -135,3 +135,61 @@ func (h *Hub) IsPlayerDisconnected(playerID string) bool {
 	_, exists := h.disconnected[playerID]
 	return exists
 }
+
+// RegisterClient registers a client with the hub
+func (h *Hub) RegisterClient(client *Client) {
+	h.register <- client
+}
+
+// UnregisterClient unregisters a client from the hub
+func (h *Hub) UnregisterClient(client *Client) {
+	h.unregister <- client
+}
+
+// T043: Implement PLAYER_JOINED broadcast
+func (h *Hub) BroadcastPlayerJoined(roomCode string, payload *PlayerJoinedPayload) error {
+	msg, err := NewMessage(MessagePlayerJoined, payload)
+	if err != nil {
+		return err
+	}
+
+	data, err := msg.Marshal()
+	if err != nil {
+		return err
+	}
+
+	h.BroadcastToRoom(roomCode, data)
+	return nil
+}
+
+// T044: Implement PLAYER_LEFT broadcast
+func (h *Hub) BroadcastPlayerLeft(roomCode string, payload *PlayerLeftPayload) error {
+	msg, err := NewMessage(MessagePlayerLeft, payload)
+	if err != nil {
+		return err
+	}
+
+	data, err := msg.Marshal()
+	if err != nil {
+		return err
+	}
+
+	h.BroadcastToRoom(roomCode, data)
+	return nil
+}
+
+// T045: Implement NICKNAME_CHANGED broadcast
+func (h *Hub) BroadcastNicknameChanged(roomCode string, payload *NicknameChangedPayload) error {
+	msg, err := NewMessage(MessageNicknameChanged, payload)
+	if err != nil {
+		return err
+	}
+
+	data, err := msg.Marshal()
+	if err != nil {
+		return err
+	}
+
+	h.BroadcastToRoom(roomCode, data)
+	return nil
+}
