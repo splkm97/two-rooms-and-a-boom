@@ -217,7 +217,7 @@
 
 **Purpose**: 여러 사용자 스토리에 영향을 미치는 개선사항 및 품질 향상
 
-- [ ] T097 [P] Add connection error handling for WebSocket disconnections in frontend/src/hooks/useWebSocket.ts
+- [X] T097 [P] Add connection error handling for WebSocket disconnections in frontend/src/hooks/useWebSocket.ts
 - [ ] T098 [P] **TEST FIRST**: Unit test for RoomService.TransferOwnership (FR-017) in backend/internal/services/room_service_test.go
 - [ ] T099 Implement RoomService.TransferOwnership (transfer to next player when owner leaves FR-017) in backend/internal/services/room_service.go
 - [ ] T100 Implement OWNER_CHANGED WebSocket broadcast in backend/internal/websocket/hub.go (FR-017)

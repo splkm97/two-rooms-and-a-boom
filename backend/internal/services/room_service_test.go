@@ -139,3 +139,138 @@ func TestRoomService_CreateRoom(t *testing.T) {
 		}
 	})
 }
+
+// T098: Unit test for RoomService.TransferOwnership (FR-017)
+func TestRoomService_TransferOwnership(t *testing.T) {
+	t.Run("transfers ownership to next player when owner leaves", func(t *testing.T) {
+		roomStore := store.NewRoomStore()
+		roomService := NewRoomService(roomStore)
+
+		// Create a room
+		room, _ := roomService.CreateRoom(10)
+
+		// Add 3 players
+		player1 := &models.Player{
+			ID:       "player1",
+			Nickname: "플레이어1",
+			RoomCode: room.Code,
+			IsOwner:  true,
+		}
+		player2 := &models.Player{
+			ID:       "player2",
+			Nickname: "플레이어2",
+			RoomCode: room.Code,
+			IsOwner:  false,
+		}
+		player3 := &models.Player{
+			ID:       "player3",
+			Nickname: "플레이어3",
+			RoomCode: room.Code,
+			IsOwner:  false,
+		}
+
+		room.Players = []*models.Player{player1, player2, player3}
+		roomStore.Update(room)
+
+		// Transfer ownership
+		newOwner, err := roomService.TransferOwnership(room.Code, player1.ID)
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		// Verify new owner is player2 (next in line)
+		if newOwner.ID != player2.ID {
+			t.Errorf("Expected new owner to be player2, got %s", newOwner.ID)
+		}
+		if !newOwner.IsOwner {
+			t.Error("Expected newOwner.IsOwner to be true")
+		}
+
+		// Verify room state
+		updatedRoom, _ := roomStore.Get(room.Code)
+		ownerCount := 0
+		for _, p := range updatedRoom.Players {
+			if p.IsOwner {
+				ownerCount++
+				if p.ID != player2.ID {
+					t.Errorf("Expected owner to be player2, got %s", p.ID)
+				}
+			}
+		}
+		if ownerCount != 1 {
+			t.Errorf("Expected exactly 1 owner, got %d", ownerCount)
+		}
+	})
+
+	t.Run("returns error if room not found", func(t *testing.T) {
+		roomStore := store.NewRoomStore()
+		roomService := NewRoomService(roomStore)
+
+		_, err := roomService.TransferOwnership("NOROOM", "player1")
+		if err != models.ErrRoomNotFound {
+			t.Errorf("Expected ErrRoomNotFound, got %v", err)
+		}
+	})
+
+	t.Run("returns error if no other players to transfer to", func(t *testing.T) {
+		roomStore := store.NewRoomStore()
+		roomService := NewRoomService(roomStore)
+
+		// Create room with only owner
+		room, _ := roomService.CreateRoom(10)
+		player1 := &models.Player{
+			ID:       "player1",
+			Nickname: "플레이어1",
+			RoomCode: room.Code,
+			IsOwner:  true,
+		}
+		room.Players = []*models.Player{player1}
+		roomStore.Update(room)
+
+		_, err := roomService.TransferOwnership(room.Code, player1.ID)
+		if err == nil {
+			t.Error("Expected error when no other players, got nil")
+		}
+	})
+
+	t.Run("skips old owner when transferring", func(t *testing.T) {
+		roomStore := store.NewRoomStore()
+		roomService := NewRoomService(roomStore)
+
+		// Create room
+		room, _ := roomService.CreateRoom(10)
+		player1 := &models.Player{
+			ID:       "player1",
+			Nickname: "플레이어1",
+			RoomCode: room.Code,
+			IsOwner:  true,
+		}
+		player2 := &models.Player{
+			ID:       "player2",
+			Nickname: "플레이어2",
+			RoomCode: room.Code,
+			IsOwner:  false,
+		}
+		room.Players = []*models.Player{player1, player2}
+		roomStore.Update(room)
+
+		// Transfer from player1 to player2
+		newOwner, err := roomService.TransferOwnership(room.Code, player1.ID)
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		// Verify player2 is new owner
+		if newOwner.ID != player2.ID {
+			t.Errorf("Expected new owner to be player2, got %s", newOwner.ID)
+		}
+
+		// Verify player1 is no longer owner
+		updatedRoom, _ := roomStore.Get(room.Code)
+		for _, p := range updatedRoom.Players {
+			if p.ID == player1.ID && p.IsOwner {
+				t.Error("Old owner should not have IsOwner=true")
+			}
+		}
+	})
+}

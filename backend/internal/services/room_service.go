@@ -81,3 +81,42 @@ func (s *RoomService) CreateRoom(maxPlayers int) (*models.Room, error) {
 func (s *RoomService) GetRoom(roomCode string) (*models.Room, error) {
 	return s.roomStore.Get(roomCode)
 }
+
+// T099: TransferOwnership transfers room ownership to the next player when the owner leaves (FR-017)
+func (s *RoomService) TransferOwnership(roomCode string, oldOwnerID string) (*models.Player, error) {
+	room, err := s.roomStore.Get(roomCode)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the next player to become owner (first player that is not the old owner)
+	var newOwner *models.Player
+	for _, player := range room.Players {
+		if player.ID != oldOwnerID {
+			newOwner = player
+			break
+		}
+	}
+
+	if newOwner == nil {
+		return nil, errors.New("no other players available to transfer ownership")
+	}
+
+	// Update ownership flags
+	for _, player := range room.Players {
+		if player.ID == newOwner.ID {
+			player.IsOwner = true
+		} else {
+			player.IsOwner = false
+		}
+	}
+
+	room.UpdatedAt = time.Now()
+
+	// Save updated room
+	if err := s.roomStore.Update(room); err != nil {
+		return nil, err
+	}
+
+	return newOwner, nil
+}
