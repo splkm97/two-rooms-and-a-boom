@@ -7,7 +7,7 @@ export function useWebSocket(roomCode: string) {
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
   const ws = useRef<WebSocket | null>(null);
-  const reconnectTimeout = useRef<NodeJS.Timeout>();
+  const reconnectTimeout = useRef<number | undefined>(undefined);
 
   const connect = useCallback(() => {
     if (!roomCode) return;

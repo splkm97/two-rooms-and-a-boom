@@ -1,22 +1,16 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './App.css';
+import { HomePage } from './pages/HomePage';
+import { LobbyPage } from './pages/LobbyPage';
 
-// Placeholder components (will be implemented in Phase 3)
-function HomePage() {
+// Placeholder component (will be implemented in Phase 4)
+function GamePage() {
   return (
-    <div>
-      <h1>두개의 방, 한개의 폭탄</h1>
-      <p>역할 배분 시스템</p>
+    <div style={{ padding: '2rem', textAlign: 'center' }}>
+      <h1>Game Page</h1>
+      <p>게임 화면은 Phase 4에서 구현됩니다</p>
     </div>
   );
-}
-
-function LobbyPage() {
-  return <div>Lobby Page (Phase 3)</div>;
-}
-
-function GamePage() {
-  return <div>Game Page (Phase 4)</div>;
 }
 
 function App() {
