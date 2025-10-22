@@ -22,7 +22,7 @@ type Player struct {
     Role        *Role     `json:"role"`         // 할당된 역할 (게임 시작 후)
     Team        TeamColor `json:"team"`         // 소속 팀 (RED/BLUE)
     CurrentRoom RoomColor `json:"currentRoom"`  // 현재 위치한 방 (RED_ROOM/BLUE_ROOM)
-    IsLeader    bool      `json:"isLeader"`     // 방장 여부
+    IsLeader    bool      `json:"isLeader"`     // 리더 여부 (각 방의 리더)
     IsHostage   bool      `json:"isHostage"`    // 현재 인질 여부
     ConnectedAt time.Time `json:"connectedAt"`  // 입장 시각
 }
@@ -59,14 +59,24 @@ const (
 
 ```go
 type Room struct {
-    Code        string          `json:"code"`         // 6자리 고유 코드 (예: "ABC123")
-    Status      RoomStatus      `json:"status"`       // 방 상태
-    Players     []*Player       `json:"players"`      // 참가자 목록
-    MaxPlayers  int             `json:"maxPlayers"`   // 최대 인원 (6-30명)
-    GameSession *GameSession    `json:"gameSession"`  // 게임 세션 (게임 시작 후)
-    CreatedAt   time.Time       `json:"createdAt"`    // 생성 시각
-    UpdatedAt   time.Time       `json:"updatedAt"`    // 최종 업데이트 시각
+    Code                  string                `json:"code"`                  // 6자리 고유 코드 (예: "ABC123")
+    Status                RoomStatus            `json:"status"`                // 방 상태
+    Players               []*Player             `json:"players"`               // 참가자 목록
+    MaxPlayers            int                   `json:"maxPlayers"`            // 최대 인원 (6-30명)
+    RoundCount            int                   `json:"roundCount"`            // 라운드 수 (3-7, 기본값: 5) FR-020
+    RoundDuration         int                   `json:"roundDuration"`         // 라운드 시간(초) (60-600, 기본값: 180) FR-020
+    HostageExchangePattern HostageExchangePattern `json:"hostageExchangePattern"` // 인질 교환 패턴 (기본값: GRADUAL) FR-012
+    GameSession           *GameSession          `json:"gameSession"`           // 게임 세션 (게임 시작 후)
+    CreatedAt             time.Time             `json:"createdAt"`             // 생성 시각
+    UpdatedAt             time.Time             `json:"updatedAt"`             // 최종 업데이트 시각
 }
+
+type HostageExchangePattern string
+const (
+    HostageExchangeFixed    HostageExchangePattern = "FIXED"    // 고정: 모든 라운드 1명
+    HostageExchangeGradual  HostageExchangePattern = "GRADUAL"  // 점진적: R1-2→1명, R3-4→2명, R5+→3명 (기본값)
+    HostageExchangeLateGame HostageExchangePattern = "LATE_GAME" // 후반 집중: R1-3→1명, R4-5→2명
+)
 
 type RoomStatus string
 const (
@@ -79,6 +89,9 @@ const (
 **Validation Rules**:
 - `Code`: 6자리 대문자 영숫자, 전역 고유
 - `MaxPlayers`: 6 이상 30 이하 (짝수 권장, FR-007)
+- `RoundCount`: 3 이상 7 이하 (기본값: 5, FR-020)
+- `RoundDuration`: 60 이상 600 이하 초 단위 (기본값: 180초 = 3분, FR-020)
+- `HostageExchangePattern`: FIXED, GRADUAL, LATE_GAME 중 하나 (기본값: GRADUAL, FR-012)
 - `Players`: 최소 6명부터 게임 시작 가능 (FR-003)
 - 게임 시작 시 `Status`는 `WAITING` → `IN_PROGRESS`
 
@@ -87,6 +100,7 @@ const (
 - FR-002: 생성 후 3초 이내 응답
 - FR-003: 6명 이상일 때만 게임 시작 가능
 - FR-004: 게임 진행 중 신규 입장 불가
+- FR-020: 방장은 게임 시작 전 라운드 설정 조정 가능 (라운드 수, 각 라운드 시간)
 
 **Lifecycle**:
 ```
@@ -110,8 +124,8 @@ type GameSession struct {
     BlueTeam      []*Player     `json:"blueTeam"`      // 파란 팀 플레이어
     RedRoomPlayers  []*Player   `json:"redRoomPlayers"`  // 빨간 방 플레이어
     BlueRoomPlayers []*Player   `json:"blueRoomPlayers"` // 파란 방 플레이어
-    RedRoomLeader   *Player     `json:"redRoomLeader"`   // 빨간 방 방장
-    BlueRoomLeader  *Player     `json:"blueRoomLeader"`  // 파란 방 방장
+    RedRoomLeader   *Player     `json:"redRoomLeader"`   // 빨간 방 리더
+    BlueRoomLeader  *Player     `json:"blueRoomLeader"`  // 파란 방 리더
     HostageHistory  []HostageExchange `json:"hostageHistory"` // 인질 교환 기록
     Result        *GameResult   `json:"result"`        // 게임 결과 (종료 후)
     StartedAt     time.Time     `json:"startedAt"`     // 게임 시작 시각
@@ -128,6 +142,7 @@ type HostageExchange struct {
     Round         int       `json:"round"`         // 라운드 번호
     FromRedRoom   *Player   `json:"fromRedRoom"`   // 빨간 방에서 보낸 인질
     FromBlueRoom  *Player   `json:"fromBlueRoom"`  // 파란 방에서 보낸 인질
+    AutoSelected  bool      `json:"autoSelected"`  // 자동 선택 여부 (타임아웃)
     ExchangedAt   time.Time `json:"exchangedAt"`   // 교환 시각
 }
 ```
@@ -141,12 +156,39 @@ type HostageExchange struct {
 **Business Rules** (from spec.md):
 - FR-006: 역할 카드는 팀별 균등 분배 (팀 배분 후)
 - FR-007: 플레이어를 빨간 팀/파란 팀으로 균등 배분
-- FR-008: 대통령은 빨간 팀, 폭탄범은 파란 팀 (항상)
+- FR-008: 대통령은 파란 팀, 폭파범은 빨간 팀 (항상)
 - FR-009: 게임 시작 시 역할 카드 즉시 표시
 - FR-011: 라운드 시작 시 플레이어를 두 방으로 균등 배분
 - FR-012: 각 방의 플레이어 목록 실시간 표시
 - FR-013: 라운드마다 타이머 작동 (분 단위 설정 가능)
-- FR-015: 인질 교환 시 각 방 방장이 인질 1명 선택 (FR-024, FR-025)
+- FR-011: 라운드 종료 시 각 방 리더가 인질 선택 인터페이스 제공
+- FR-011.1: 인질 선택 제한 시간(60초) 내 미선택 시 자동 무작위 선택
+- FR-012: 방장이 설정한 패턴에 따라 라운드별 인질 교환 수 결정
+- FR-015: 인질 교환 시 각 방 리더가 인질 선택 (FR-024, FR-025)
+
+**Hostage Exchange Count Logic** (FR-012):
+```go
+func GetHostageCount(round int, pattern HostageExchangePattern) int {
+    switch pattern {
+    case HostageExchangeFixed:
+        return 1  // 모든 라운드 1명
+    case HostageExchangeGradual:  // 기본값 (원본 게임 규칙)
+        if round <= 2 {
+            return 1  // 라운드 1-2: 1명
+        } else if round <= 4 {
+            return 2  // 라운드 3-4: 2명
+        }
+        return 3  // 라운드 5+: 3명
+    case HostageExchangeLateGame:
+        if round <= 3 {
+            return 1  // 라운드 1-3: 1명
+        }
+        return 2  // 라운드 4-5: 2명
+    default:
+        return 1
+    }
+}
+```
 
 **Round Lifecycle**:
 ```
@@ -197,7 +239,7 @@ type Role struct {
     Name        string    `json:"name"`        // 역할 이름 (한국어)
     Description string    `json:"description"` // 역할 설명
     Team        TeamColor `json:"team"`        // 소속 팀 (RED/BLUE)
-    IsLeader    bool      `json:"isLeader"`    // 리더 여부 (대통령/폭탄범)
+    IsLeader    bool      `json:"isLeader"`    // 리더 여부 (대통령/폭파범)
 }
 ```
 
@@ -207,16 +249,16 @@ var (
     RolePresident = Role{
         ID:          "PRESIDENT",
         Name:        "대통령",
-        Description: "빨간 팀의 리더. 폭탄범과 같은 방에 있으면 안 됩니다.",
-        Team:        TeamRed,
+        Description: "파란 팀의 리더. 폭파범과 같은 방에 있으면 안 됩니다.",
+        Team:        TeamBlue,
         IsLeader:    true,
     }
 
     RoleBomber = Role{
         ID:          "BOMBER",
-        Name:        "폭탄범",
-        Description: "파란 팀의 리더. 대통령과 같은 방에 있어야 합니다.",
-        Team:        TeamBlue,
+        Name:        "폭파범",
+        Description: "빨간 팀의 리더. 대통령과 같은 방에 있어야 합니다.",
+        Team:        TeamRed,
         IsLeader:    true,
     }
 
@@ -226,9 +268,9 @@ var (
 ```
 
 **Validation Rules**:
-- 대통령(PRESIDENT)은 항상 빨간 팀 (FR-008)
-- 폭탄범(BOMBER)은 항상 파란 팀 (FR-008)
-- 각 게임마다 정확히 1명의 대통령, 1명의 폭탄범
+- 대통령(PRESIDENT)은 항상 파란 팀 (FR-008)
+- 폭파범(BOMBER)은 항상 빨간 팀 (FR-008)
+- 각 게임마다 정확히 1명의 대통령, 1명의 폭파범
 
 **Business Rules** (from spec.md):
 - FR-006: 역할 카드는 팀별로 균등 분배
@@ -245,23 +287,23 @@ type GameResult struct {
     Reason       string    `json:"reason"`       // 승리 이유
     FinalRound   int       `json:"finalRound"`   // 종료된 라운드
     President    *Player   `json:"president"`    // 대통령
-    Bomber       *Player   `json:"bomber"`       // 폭탄범
+    Bomber       *Player   `json:"bomber"`       // 폭파범
     PresidentRoom RoomColor `json:"presidentRoom"` // 대통령 최종 위치
-    BomberRoom    RoomColor `json:"bomberRoom"`    // 폭탄범 최종 위치
+    BomberRoom    RoomColor `json:"bomberRoom"`    // 폭파범 최종 위치
     EndedAt      time.Time `json:"endedAt"`      // 게임 종료 시각
 }
 ```
 
 **Validation Rules**:
 - `WinningTeam`: TeamRed 또는 TeamBlue
-- `Reason`: 승리 조건 설명 (예: "대통령과 폭탄범이 같은 방에 있습니다")
+- `Reason`: 승리 조건 설명 (예: "대통령과 폭파범이 같은 방에 있습니다")
 
 **Business Rules** (from spec.md):
-- FR-016: 최종 라운드 종료 시 대통령과 폭탄범의 위치 확인
-- FR-017: 대통령과 폭탄범이 **같은 방**이면 파란 팀(폭탄범) 승리
-- FR-018: 대통령과 폭탄범이 **다른 방**이면 빨간 팀(대통령) 승리
+- FR-016: 최종 라운드 종료 시 대통령과 폭파범의 위치 확인
+- FR-017: 대통령과 폭파범이 **같은 방**이면 빨간 팀(폭파범) 승리
+- FR-018: 대통령과 폭파범이 **다른 방**이면 파란 팀(대통령) 승리
 - FR-019: 게임 결과를 모든 플레이어에게 동시 표시
-- FR-020: 결과 화면에 승리 팀, 대통령/폭탄범 역할 공개
+- FR-020: 결과 화면에 승리 팀, 대통령/폭파범 역할 공개
 
 **Victory Condition Logic**:
 ```go
@@ -279,11 +321,11 @@ func DetermineWinner(session *GameSession) *GameResult {
     }
 
     if president.CurrentRoom == bomber.CurrentRoom {
-        result.WinningTeam = TeamBlue
-        result.Reason = "대통령과 폭탄범이 같은 방에 있습니다. 파란 팀 승리!"
-    } else {
         result.WinningTeam = TeamRed
-        result.Reason = "대통령과 폭탄범이 다른 방에 있습니다. 빨간 팀 승리!"
+        result.Reason = "대통령과 폭파범이 같은 방에 있습니다. 빨간 팀 승리!"
+    } else {
+        result.WinningTeam = TeamBlue
+        result.Reason = "대통령과 폭파범이 다른 방에 있습니다. 파란 팀 승리!"
     }
 
     return result
@@ -463,7 +505,7 @@ func DetermineWinner(session *GameSession) *GameResult {
 ```
 [최종 라운드 종료] → [GameService.EndGame]
                     ↓
-                [대통령/폭탄범 위치 확인]
+                [대통령/폭파범 위치 확인]
                     ↓
                 [승리 팀 판정]
                     ↓

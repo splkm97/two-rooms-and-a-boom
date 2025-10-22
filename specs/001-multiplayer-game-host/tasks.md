@@ -57,6 +57,8 @@
 - [ ] T015 [P] Setup Gin router with health check endpoint in backend/cmd/server/main.go
 - [ ] T016 **TEST FIRST**: Create WebSocket Hub test in backend/internal/websocket/hub_test.go
 - [ ] T017 Implement WebSocket Hub with register/unregister/broadcast channels in backend/internal/websocket/hub.go
+- [ ] T017.1 **TEST FIRST**: Create player reconnection logic test in backend/internal/websocket/hub_test.go (30-second grace period)
+- [ ] T017.2 Implement player reconnection logic (30-second grace period) in backend/internal/websocket/hub.go
 - [ ] T018 [P] **TEST FIRST**: Create WebSocket Client test in backend/internal/websocket/client_test.go
 - [ ] T019 [P] Implement WebSocket Client with read/write pumps in backend/internal/websocket/client.go
 - [ ] T020 Create WebSocket message types and serialization in backend/internal/websocket/messages.go
@@ -107,6 +109,9 @@
 - [ ] T046 [US1] Implement PLAYER_LEFT broadcast in WebSocket Hub for backend/internal/websocket/hub.go
 - [ ] T047 [US1] Implement NICKNAME_CHANGED broadcast in WebSocket Hub for backend/internal/websocket/hub.go
 - [ ] T048 [US1] Wire all US1 routes to Gin router in backend/cmd/server/main.go
+- [ ] T048.1 [US1] Add roundCount and roundDuration fields to Room model in backend/internal/models/room.go (FR-020)
+- [ ] T048.2 [US1] Add validation for round settings (roundCount: 3-7, roundDuration: 60-600 seconds) in backend/internal/services/room_service.go (FR-020)
+- [ ] T048.3 [US1] Add PATCH /api/v1/rooms/{roomCode}/settings endpoint for updating round settings in backend/internal/handlers/room_handler.go (FR-020)
 
 ### 프론트엔드 Tests for US1 (TDD - 먼저 작성)
 
@@ -129,16 +134,19 @@
 - [ ] T062 [US1] Create NicknameEditor component for editing own nickname in frontend/src/components/NicknameEditor.tsx
 - [ ] T063 [US1] Integrate PLAYER_JOINED/PLAYER_LEFT/NICKNAME_CHANGED WebSocket messages in frontend/src/pages/LobbyPage.tsx
 - [ ] T064 [US1] Add error handling for room not found and game in progress in frontend/src/pages/LobbyPage.tsx
+- [ ] T064.1 [P] [US1] Create RoundSettings component for configuring rounds in frontend/src/components/RoundSettings.tsx (FR-020)
+- [ ] T064.2 [US1] Integrate RoundSettings component into LobbyPage (visible only to room leader) in frontend/src/pages/LobbyPage.tsx (FR-020)
+- [ ] T064.3 [US1] Add updateRoomSettings API function in frontend/src/services/api.ts (FR-020)
 
-**Checkpoint**: User Story 1 완료 - 방 생성, 플레이어 입장, 닉네임 변경 기능 동작 확인
+**Checkpoint**: User Story 1 완료 - 방 생성, 플레이어 입장, 닉네임 변경, 라운드 설정 기능 동작 확인
 
 ---
 
 ## Phase 4: User Story 2 - 역할 카드 배분 및 확인 (Priority: P2)
 
-**Goal**: 게임 시작 시 각 플레이어에게 역할 카드(대통령, 폭탄범, 일반)가 자동 배분되고, 플레이어는 자신의 역할만 확인할 수 있다.
+**Goal**: 게임 시작 시 각 플레이어에게 역할 카드(대통령, 폭파범, 일반)가 자동 배분되고, 플레이어는 자신의 역할만 확인할 수 있다.
 
-**Independent Test**: 게임 시작 후 각 플레이어가 자신의 역할 카드를 확인하고, 레드 팀과 블루 팀이 균등 분배되었는지, 대통령과 폭탄범이 정확히 한 명씩 존재하는지 검증.
+**Independent Test**: 게임 시작 후 각 플레이어가 자신의 역할 카드를 확인하고, 레드 팀과 블루 팀이 균등 분배되었는지, 대통령과 폭파범이 정확히 한 명씩 존재하는지 검증.
 
 ### 백엔드 Tests for US2 (TDD - 먼저 작성)
 
@@ -243,8 +251,8 @@
 - [ ] T116 [US4] Implement room assignment algorithm (AssignRooms - RED_ROOM/BLUE_ROOM equal split) in backend/internal/services/game_service.go
 - [ ] T117 [US4] Implement leader assignment algorithm (AssignLeaders - first player in each room FR-024) in backend/internal/services/game_service.go
 - [ ] T118 [US4] Update GameService.StartRound to call AssignRooms and AssignLeaders in backend/internal/services/game_service.go
-- [ ] T119 [US4] Implement GameService.SelectHostage (validate leader, store selection) in backend/internal/services/game_service.go
-- [ ] T120 [US4] Implement GameService.ExchangeHostages (swap rooms, record HostageExchange) in backend/internal/services/game_service.go
+- [ ] T119 [US4] Implement GameService.SelectHostage (validate leader, store selection, 60s timeout with auto-random selection per FR-011.1) in backend/internal/services/game_service.go
+- [ ] T120 [US4] Implement GameService.ExchangeHostages (swap rooms, record HostageExchange with autoSelected flag) in backend/internal/services/game_service.go
 - [ ] T121 [US4] Create POST /api/v1/rooms/{roomCode}/game/hostages handler in backend/internal/handlers/game_handler.go
 - [ ] T122 [US4] Implement HOSTAGE_SELECTED broadcast in WebSocket Hub for backend/internal/websocket/hub.go
 - [ ] T123 [US4] Implement HOSTAGE_EXCHANGED broadcast in WebSocket Hub for backend/internal/websocket/hub.go
@@ -275,9 +283,9 @@
 
 ## Phase 7: User Story 5 - 게임 결과 판정 (Priority: P5)
 
-**Goal**: 마지막 라운드 종료 시 대통령과 폭탄범이 같은 방에 있는지 확인하여 승리 팀을 자동으로 판정하고 결과를 표시한다.
+**Goal**: 마지막 라운드 종료 시 대통령과 폭파범이 같은 방에 있는지 확인하여 승리 팀을 자동으로 판정하고 결과를 표시한다.
 
-**Independent Test**: 마지막 라운드 종료 시 대통령과 폭탄범의 위치를 확인하고, 같은 방에 있으면 레드 팀 승리, 다른 방에 있으면 블루 팀 승리를 표시하는지 검증.
+**Independent Test**: 마지막 라운드 종료 시 대통령과 폭파범의 위치를 확인하고, 같은 방에 있으면 블루 팀 승리, 다른 방에 있으면 레드 팀 승리를 표시하는지 검증.
 
 ### 백엔드 Tests for US5 (TDD - 먼저 작성)
 
@@ -318,7 +326,6 @@
 **Purpose**: 여러 사용자 스토리에 영향을 미치는 개선사항 및 품질 향상
 
 - [ ] T156 [P] Add connection error handling for WebSocket disconnections in frontend/src/hooks/useWebSocket.ts
-- [ ] T157 [P] Implement player reconnection logic (30-second grace period) in backend/internal/websocket/hub.go
 - [ ] T158 [P] Add validation middleware for all request payloads in backend/internal/handlers/validation.go
 - [ ] T159 [P] Add logging for all critical operations (room creation, game start, round transitions) in backend/internal/services/
 - [ ] T160 [P] Implement graceful shutdown for WebSocket Hub in backend/cmd/server/main.go

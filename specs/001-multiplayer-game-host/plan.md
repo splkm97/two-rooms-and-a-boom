@@ -14,7 +14,7 @@
 **Language/Version**: Go 1.21+ (백엔드), React 18+ with TypeScript (프론트엔드)
 **Primary Dependencies**:
 - 백엔드: Gin (웹 프레임워크), Gorilla WebSocket (실시간 통신)
-- 프론트엔드: React 18, TypeScript, React Router, Socket.io-client
+- 프론트엔드: React 18, TypeScript, React Router (WebSocket은 네이티브 API 사용)
 
 **Storage**: 인메모리 저장소 (게임 세션은 휘발성, 영구 저장 불필요)
 **Testing**: Go testing 패키지 (백엔드), React Testing Library + Jest (프론트엔드)
