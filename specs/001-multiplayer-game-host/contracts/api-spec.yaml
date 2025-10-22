@@ -1,0 +1,1067 @@
+openapi: 3.0.3
+info:
+  title: Two Rooms and a Boom - Multiplayer Game API
+  description: |
+    "두개의 방, 한개의 폭탄" 멀티플레이어 게임 진행 시스템 API 명세.
+
+    이 API는 RESTful HTTP 엔드포인트와 WebSocket 실시간 통신을 제공합니다.
+
+    **참조 문서**:
+    - [Feature Specification](../spec.md)
+    - [Implementation Plan](../plan.md)
+    - [Data Model](../data-model.md)
+    - [Technical Research](../research.md)
+
+    **기술 스택**:
+    - Backend: Go 1.21+ with Gin framework
+    - WebSocket: Gorilla WebSocket
+    - Storage: In-memory (volatile)
+  version: 1.0.0
+  contact:
+    name: Two Rooms and a Boom Development Team
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: ws://localhost:8080
+    description: WebSocket server
+
+tags:
+  - name: rooms
+    description: 게임 방 관리 API
+  - name: players
+    description: 플레이어 관리 API
+  - name: game
+    description: 게임 진행 API
+  - name: websocket
+    description: 실시간 통신 WebSocket API
+
+paths:
+  /api/v1/rooms:
+    post:
+      tags:
+        - rooms
+      summary: 새 게임 방 생성
+      description: |
+        새로운 게임 방을 생성하고 고유한 6자리 방 코드를 반환합니다.
+
+        **Business Rules (from spec.md)**:
+        - FR-001: 고유 방 코드 자동 생성
+        - FR-002: 생성 후 3초 이내 응답
+        - SC-003: 방 생성 응답 시간 5초 이내
+      operationId: createRoom
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - maxPlayers
+              properties:
+                maxPlayers:
+                  type: integer
+                  minimum: 6
+                  maximum: 30
+                  description: 최대 플레이어 수 (6-30명)
+                  example: 10
+            examples:
+              typical:
+                summary: 일반적인 방 생성
+                value:
+                  maxPlayers: 10
+              large:
+                summary: 큰 방 생성
+                value:
+                  maxPlayers: 30
+      responses:
+        '201':
+          description: 방 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+              examples:
+                success:
+                  summary: 생성된 방
+                  value:
+                    code: "ABC123"
+                    status: "WAITING"
+                    players: []
+                    maxPlayers: 10
+                    gameSession: null
+                    createdAt: "2025-10-22T10:00:00Z"
+                    updatedAt: "2025-10-22T10:00:00Z"
+        '400':
+          description: 잘못된 요청 (maxPlayers 범위 오류)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidMaxPlayers:
+                  summary: 잘못된 maxPlayers 값
+                  value:
+                    error: "maxPlayers must be between 6 and 30"
+                    code: "INVALID_MAX_PLAYERS"
+        '500':
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/rooms/{roomCode}:
+    get:
+      tags:
+        - rooms
+      summary: 방 정보 조회
+      description: 방 코드로 방 정보를 조회합니다.
+      operationId: getRoom
+      parameters:
+        - $ref: '#/components/parameters/RoomCode'
+      responses:
+        '200':
+          description: 방 정보 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '404':
+          description: 방을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                notFound:
+                  summary: 방 없음
+                  value:
+                    error: "Room not found"
+                    code: "ROOM_NOT_FOUND"
+
+  /api/v1/rooms/{roomCode}/players:
+    post:
+      tags:
+        - players
+      summary: 방에 플레이어 입장
+      description: |
+        지정된 방에 새 플레이어를 입장시킵니다.
+
+        **Business Rules (from spec.md)**:
+        - FR-004: 게임 진행 중(IN_PROGRESS)일 때는 입장 불가
+        - FR-021: 자동으로 익명 닉네임 부여 (예: "플레이어1")
+        - FR-022: 대기실에서 닉네임 변경 가능
+        - FR-023: 닉네임 중복 시 자동으로 숫자 추가
+        - SC-003: 입장 응답 시간 5초 이내
+      operationId: joinRoom
+      parameters:
+        - $ref: '#/components/parameters/RoomCode'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nickname:
+                  type: string
+                  minLength: 2
+                  maxLength: 20
+                  pattern: '^[a-zA-Z0-9가-힣]+$'
+                  description: 선택적 닉네임 (미제공 시 자동 생성)
+                  example: "홍길동"
+            examples:
+              withNickname:
+                summary: 닉네임 지정
+                value:
+                  nickname: "홍길동"
+              withoutNickname:
+                summary: 자동 닉네임
+                value: {}
+      responses:
+        '201':
+          description: 입장 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+              examples:
+                autoNickname:
+                  summary: 자동 생성된 닉네임
+                  value:
+                    id: "550e8400-e29b-41d4-a716-446655440000"
+                    nickname: "플레이어1"
+                    isAnonymous: true
+                    roomCode: "ABC123"
+                    role: null
+                    team: "RED"
+                    currentRoom: "RED_ROOM"
+                    isLeader: false
+                    isHostage: false
+                    connectedAt: "2025-10-22T10:05:00Z"
+                customNickname:
+                  summary: 사용자 지정 닉네임
+                  value:
+                    id: "550e8400-e29b-41d4-a716-446655440001"
+                    nickname: "홍길동"
+                    isAnonymous: false
+                    roomCode: "ABC123"
+                    role: null
+                    team: "BLUE"
+                    currentRoom: "BLUE_ROOM"
+                    isLeader: false
+                    isHostage: false
+                    connectedAt: "2025-10-22T10:06:00Z"
+        '400':
+          description: 잘못된 요청 (닉네임 형식 오류)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 입장 불가 (게임 진행 중 또는 방 만원)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                gameInProgress:
+                  summary: 게임 진행 중
+                  value:
+                    error: "Cannot join room: game already in progress"
+                    code: "GAME_IN_PROGRESS"
+                roomFull:
+                  summary: 방 만원
+                  value:
+                    error: "Room is full"
+                    code: "ROOM_FULL"
+        '404':
+          description: 방을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/rooms/{roomCode}/players/{playerId}/nickname:
+    patch:
+      tags:
+        - players
+      summary: 플레이어 닉네임 변경
+      description: |
+        대기실에서 플레이어의 닉네임을 변경합니다.
+
+        **Business Rules (from spec.md)**:
+        - FR-022: 대기실에서만 닉네임 변경 가능
+        - FR-023: 닉네임 중복 시 자동으로 숫자 추가
+      operationId: updateNickname
+      parameters:
+        - $ref: '#/components/parameters/RoomCode'
+        - $ref: '#/components/parameters/PlayerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - nickname
+              properties:
+                nickname:
+                  type: string
+                  minLength: 2
+                  maxLength: 20
+                  pattern: '^[a-zA-Z0-9가-힣]+$'
+                  example: "홍길동"
+      responses:
+        '200':
+          description: 닉네임 변경 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 닉네임 변경 불가 (게임 시작됨)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 플레이어를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/rooms/{roomCode}/game/start:
+    post:
+      tags:
+        - game
+      summary: 게임 시작
+      description: |
+        게임을 시작하고 역할 카드를 배분합니다.
+
+        **Business Rules (from spec.md)**:
+        - FR-003: 6명 이상일 때만 게임 시작 가능
+        - FR-006: 역할 카드 팀별 균등 분배
+        - FR-007: 플레이어를 빨간 팀/파란 팀으로 균등 배분
+        - FR-008: 대통령은 빨간 팀, 폭탄범은 파란 팀
+        - FR-009: 게임 시작 시 역할 카드 즉시 표시
+      operationId: startGame
+      parameters:
+        - $ref: '#/components/parameters/RoomCode'
+      responses:
+        '200':
+          description: 게임 시작 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameSession'
+        '400':
+          description: 게임 시작 불가 (플레이어 수 부족)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                notEnoughPlayers:
+                  summary: 플레이어 부족
+                  value:
+                    error: "At least 6 players required to start game"
+                    code: "NOT_ENOUGH_PLAYERS"
+        '404':
+          description: 방을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/rooms/{roomCode}/game/rounds/{roundNumber}/start:
+    post:
+      tags:
+        - game
+      summary: 라운드 시작
+      description: |
+        새 라운드를 시작하고 플레이어를 방에 배치합니다.
+
+        **Business Rules (from spec.md)**:
+        - FR-011: 라운드 시작 시 플레이어를 빨간 방/파란 방으로 균등 배분
+        - FR-012: 각 방의 플레이어 목록 실시간 표시
+        - FR-013: 라운드마다 타이머 작동
+        - FR-024: 각 방에 방장 자동 지정
+        - FR-025: 방장 표시
+      operationId: startRound
+      parameters:
+        - $ref: '#/components/parameters/RoomCode'
+        - name: roundNumber
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: 라운드 번호 (1부터 시작)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - duration
+              properties:
+                duration:
+                  type: integer
+                  minimum: 60
+                  description: 라운드 시간 (초 단위, 최소 60초)
+                  example: 300
+      responses:
+        '200':
+          description: 라운드 시작 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameSession'
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 방 또는 게임 세션을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/rooms/{roomCode}/game/hostages:
+    post:
+      tags:
+        - game
+      summary: 인질 선택 및 교환
+      description: |
+        각 방의 방장이 인질을 선택하고 교환합니다.
+
+        **Business Rules (from spec.md)**:
+        - FR-015: 각 방 방장이 인질 1명씩 선택
+        - FR-024: 각 방마다 방장 존재
+      operationId: exchangeHostages
+      parameters:
+        - $ref: '#/components/parameters/RoomCode'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - redRoomHostageId
+                - blueRoomHostageId
+              properties:
+                redRoomHostageId:
+                  type: string
+                  format: uuid
+                  description: 빨간 방에서 선택한 인질 플레이어 ID
+                blueRoomHostageId:
+                  type: string
+                  format: uuid
+                  description: 파란 방에서 선택한 인질 플레이어 ID
+            examples:
+              typical:
+                summary: 인질 교환
+                value:
+                  redRoomHostageId: "550e8400-e29b-41d4-a716-446655440000"
+                  blueRoomHostageId: "550e8400-e29b-41d4-a716-446655440001"
+      responses:
+        '200':
+          description: 인질 교환 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostageExchange'
+        '400':
+          description: 잘못된 요청 (방장이 아니거나 잘못된 플레이어 선택)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 방, 게임 세션, 또는 플레이어를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/rooms/{roomCode}/game/end:
+    post:
+      tags:
+        - game
+      summary: 게임 종료 및 결과 판정
+      description: |
+        게임을 종료하고 승리 팀을 판정합니다.
+
+        **Business Rules (from spec.md)**:
+        - FR-016: 최종 라운드 종료 시 대통령과 폭탄범 위치 확인
+        - FR-017: 같은 방이면 파란 팀(폭탄범) 승리
+        - FR-018: 다른 방이면 빨간 팀(대통령) 승리
+        - FR-019: 게임 결과를 모든 플레이어에게 동시 표시
+        - FR-020: 결과 화면에 승리 팀, 대통령/폭탄범 역할 공개
+      operationId: endGame
+      parameters:
+        - $ref: '#/components/parameters/RoomCode'
+      responses:
+        '200':
+          description: 게임 종료 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameResult'
+        '404':
+          description: 방 또는 게임 세션을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /ws/{roomCode}:
+    get:
+      tags:
+        - websocket
+      summary: WebSocket 연결
+      description: |
+        실시간 게임 이벤트를 위한 WebSocket 연결을 설정합니다.
+
+        **WebSocket Message Types**:
+        - `PLAYER_JOINED`: 플레이어 입장 알림
+        - `PLAYER_LEFT`: 플레이어 퇴장 알림
+        - `NICKNAME_CHANGED`: 닉네임 변경 알림
+        - `GAME_STARTED`: 게임 시작 알림
+        - `ROLE_ASSIGNED`: 역할 배정 알림 (개인)
+        - `ROUND_STARTED`: 라운드 시작 알림
+        - `TIMER_UPDATE`: 타이머 업데이트 (1초마다)
+        - `LEADER_CHANGED`: 방장 변경 알림
+        - `HOSTAGE_SELECTED`: 인질 선택 알림
+        - `HOSTAGE_EXCHANGED`: 인질 교환 완료 알림
+        - `GAME_ENDED`: 게임 종료 알림
+
+        **Performance Requirements (from spec.md)**:
+        - SC-001: 실시간 이벤트 동기화 1초 이하
+        - SC-002: 타이머 동기화 오차 1초 이하
+      operationId: connectWebSocket
+      parameters:
+        - $ref: '#/components/parameters/RoomCode'
+      responses:
+        '101':
+          description: WebSocket 연결 업그레이드 성공
+        '404':
+          description: 방을 찾을 수 없음
+
+components:
+  parameters:
+    RoomCode:
+      name: roomCode
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[A-Z0-9]{6}$'
+      description: 6자리 방 코드 (예: "ABC123")
+      example: "ABC123"
+
+    PlayerId:
+      name: playerId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: 플레이어 고유 ID (UUID)
+      example: "550e8400-e29b-41d4-a716-446655440000"
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+        - code
+      properties:
+        error:
+          type: string
+          description: 에러 메시지
+        code:
+          type: string
+          description: 에러 코드
+        details:
+          type: object
+          description: 추가 에러 정보
+      example:
+        error: "Room not found"
+        code: "ROOM_NOT_FOUND"
+
+    TeamColor:
+      type: string
+      enum:
+        - RED
+        - BLUE
+      description: 팀 색상
+
+    RoomColor:
+      type: string
+      enum:
+        - RED_ROOM
+        - BLUE_ROOM
+      description: 방 색상
+
+    RoomStatus:
+      type: string
+      enum:
+        - WAITING
+        - IN_PROGRESS
+        - ENDED
+      description: 방 상태
+
+    RoundState:
+      type: string
+      enum:
+        - DISCUSSION
+        - EXCHANGE
+        - ENDED
+      description: 라운드 상태
+
+    Role:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - team
+        - isLeader
+      properties:
+        id:
+          type: string
+          description: 역할 고유 ID
+          example: "PRESIDENT"
+        name:
+          type: string
+          description: 역할 이름 (한국어)
+          example: "대통령"
+        description:
+          type: string
+          description: 역할 설명
+          example: "빨간 팀의 리더. 폭탄범과 같은 방에 있으면 안 됩니다."
+        team:
+          $ref: '#/components/schemas/TeamColor'
+        isLeader:
+          type: boolean
+          description: 리더 여부
+          example: true
+
+    Player:
+      type: object
+      required:
+        - id
+        - nickname
+        - isAnonymous
+        - roomCode
+        - team
+        - currentRoom
+        - isLeader
+        - isHostage
+        - connectedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 플레이어 고유 ID
+        nickname:
+          type: string
+          minLength: 2
+          maxLength: 20
+          description: 플레이어 닉네임
+        isAnonymous:
+          type: boolean
+          description: 익명 닉네임 여부
+        roomCode:
+          type: string
+          description: 속한 방 코드
+        role:
+          allOf:
+            - $ref: '#/components/schemas/Role'
+          nullable: true
+          description: 할당된 역할 (게임 시작 후)
+        team:
+          $ref: '#/components/schemas/TeamColor'
+        currentRoom:
+          $ref: '#/components/schemas/RoomColor'
+        isLeader:
+          type: boolean
+          description: 방장 여부
+        isHostage:
+          type: boolean
+          description: 현재 인질 여부
+        connectedAt:
+          type: string
+          format: date-time
+          description: 입장 시각
+
+    Room:
+      type: object
+      required:
+        - code
+        - status
+        - players
+        - maxPlayers
+        - createdAt
+        - updatedAt
+      properties:
+        code:
+          type: string
+          pattern: '^[A-Z0-9]{6}$'
+          description: 6자리 고유 방 코드
+        status:
+          $ref: '#/components/schemas/RoomStatus'
+        players:
+          type: array
+          items:
+            $ref: '#/components/schemas/Player'
+          description: 참가자 목록
+        maxPlayers:
+          type: integer
+          minimum: 6
+          maximum: 30
+          description: 최대 인원
+        gameSession:
+          allOf:
+            - $ref: '#/components/schemas/GameSession'
+          nullable: true
+          description: 게임 세션 (게임 시작 후)
+        createdAt:
+          type: string
+          format: date-time
+          description: 생성 시각
+        updatedAt:
+          type: string
+          format: date-time
+          description: 최종 업데이트 시각
+
+    RoundTimer:
+      type: object
+      required:
+        - duration
+        - remaining
+        - startedAt
+        - isRunning
+      properties:
+        duration:
+          type: integer
+          minimum: 60
+          description: 라운드 시간 (초 단위)
+        remaining:
+          type: integer
+          minimum: 0
+          description: 남은 시간 (초 단위)
+        startedAt:
+          type: string
+          format: date-time
+          description: 타이머 시작 시각
+        isRunning:
+          type: boolean
+          description: 타이머 작동 여부
+
+    HostageExchange:
+      type: object
+      required:
+        - round
+        - fromRedRoom
+        - fromBlueRoom
+        - exchangedAt
+      properties:
+        round:
+          type: integer
+          minimum: 1
+          description: 라운드 번호
+        fromRedRoom:
+          $ref: '#/components/schemas/Player'
+        fromBlueRoom:
+          $ref: '#/components/schemas/Player'
+        exchangedAt:
+          type: string
+          format: date-time
+          description: 교환 시각
+
+    GameResult:
+      type: object
+      required:
+        - winningTeam
+        - reason
+        - finalRound
+        - president
+        - bomber
+        - presidentRoom
+        - bomberRoom
+        - endedAt
+      properties:
+        winningTeam:
+          $ref: '#/components/schemas/TeamColor'
+        reason:
+          type: string
+          description: 승리 이유
+          example: "대통령과 폭탄범이 같은 방에 있습니다. 파란 팀 승리!"
+        finalRound:
+          type: integer
+          description: 종료된 라운드
+        president:
+          $ref: '#/components/schemas/Player'
+        bomber:
+          $ref: '#/components/schemas/Player'
+        presidentRoom:
+          $ref: '#/components/schemas/RoomColor'
+        bomberRoom:
+          $ref: '#/components/schemas/RoomColor'
+        endedAt:
+          type: string
+          format: date-time
+          description: 게임 종료 시각
+
+    GameSession:
+      type: object
+      required:
+        - roomCode
+        - currentRound
+        - totalRounds
+        - roundState
+        - timer
+        - redTeam
+        - blueTeam
+        - redRoomPlayers
+        - blueRoomPlayers
+        - redRoomLeader
+        - blueRoomLeader
+        - hostageHistory
+        - startedAt
+      properties:
+        roomCode:
+          type: string
+          description: 속한 방 코드
+        currentRound:
+          type: integer
+          minimum: 1
+          description: 현재 라운드
+        totalRounds:
+          type: integer
+          minimum: 1
+          description: 총 라운드 수
+        roundState:
+          $ref: '#/components/schemas/RoundState'
+        timer:
+          $ref: '#/components/schemas/RoundTimer'
+        redTeam:
+          type: array
+          items:
+            $ref: '#/components/schemas/Player'
+          description: 빨간 팀 플레이어
+        blueTeam:
+          type: array
+          items:
+            $ref: '#/components/schemas/Player'
+          description: 파란 팀 플레이어
+        redRoomPlayers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Player'
+          description: 빨간 방 플레이어
+        blueRoomPlayers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Player'
+          description: 파란 방 플레이어
+        redRoomLeader:
+          $ref: '#/components/schemas/Player'
+        blueRoomLeader:
+          $ref: '#/components/schemas/Player'
+        hostageHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/HostageExchange'
+          description: 인질 교환 기록
+        result:
+          allOf:
+            - $ref: '#/components/schemas/GameResult'
+          nullable: true
+          description: 게임 결과 (종료 후)
+        startedAt:
+          type: string
+          format: date-time
+          description: 게임 시작 시각
+
+    WebSocketMessage:
+      type: object
+      required:
+        - type
+        - payload
+        - timestamp
+      properties:
+        type:
+          type: string
+          enum:
+            - PLAYER_JOINED
+            - PLAYER_LEFT
+            - NICKNAME_CHANGED
+            - GAME_STARTED
+            - ROLE_ASSIGNED
+            - ROUND_STARTED
+            - TIMER_UPDATE
+            - LEADER_CHANGED
+            - HOSTAGE_SELECTED
+            - HOSTAGE_EXCHANGED
+            - GAME_ENDED
+          description: 메시지 타입
+        payload:
+          type: object
+          description: 메시지 페이로드 (타입별로 다름)
+        timestamp:
+          type: integer
+          format: int64
+          description: Unix timestamp (밀리초)
+      examples:
+        - type: "PLAYER_JOINED"
+          payload:
+            player:
+              id: "550e8400-e29b-41d4-a716-446655440000"
+              nickname: "홍길동"
+              isAnonymous: false
+          timestamp: 1698012345678
+        - type: "TIMER_UPDATE"
+          payload:
+            remaining: 120
+          timestamp: 1698012346678
+        - type: "GAME_ENDED"
+          payload:
+            result:
+              winningTeam: "BLUE"
+              reason: "대통령과 폭탄범이 같은 방에 있습니다. 파란 팀 승리!"
+          timestamp: 1698012347678
+
+  securitySchemes:
+    # MVP에서는 인증 없음 (향후 추가 가능)
+    {}
+
+# WebSocket Message Specifications
+x-websocket-messages:
+  PLAYER_JOINED:
+    description: 새 플레이어가 방에 입장했을 때 브로드캐스트
+    direction: server-to-client
+    payload:
+      type: object
+      required:
+        - player
+      properties:
+        player:
+          $ref: '#/components/schemas/Player'
+
+  PLAYER_LEFT:
+    description: 플레이어가 방을 나갔을 때 브로드캐스트
+    direction: server-to-client
+    payload:
+      type: object
+      required:
+        - playerId
+      properties:
+        playerId:
+          type: string
+          format: uuid
+
+  NICKNAME_CHANGED:
+    description: 플레이어가 닉네임을 변경했을 때 브로드캐스트
+    direction: server-to-client
+    payload:
+      type: object
+      required:
+        - playerId
+        - newNickname
+      properties:
+        playerId:
+          type: string
+          format: uuid
+        newNickname:
+          type: string
+
+  GAME_STARTED:
+    description: 게임이 시작되었을 때 브로드캐스트
+    direction: server-to-client
+    payload:
+      type: object
+      required:
+        - gameSession
+      properties:
+        gameSession:
+          $ref: '#/components/schemas/GameSession'
+
+  ROLE_ASSIGNED:
+    description: 플레이어에게 역할이 배정되었을 때 개별 전송
+    direction: server-to-client
+    payload:
+      type: object
+      required:
+        - role
+      properties:
+        role:
+          $ref: '#/components/schemas/Role'
+
+  ROUND_STARTED:
+    description: 라운드가 시작되었을 때 브로드캐스트
+    direction: server-to-client
+    payload:
+      type: object
+      required:
+        - round
+        - duration
+        - redRoomPlayers
+        - blueRoomPlayers
+        - redRoomLeader
+        - blueRoomLeader
+      properties:
+        round:
+          type: integer
+        duration:
+          type: integer
+        redRoomPlayers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Player'
+        blueRoomPlayers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Player'
+        redRoomLeader:
+          $ref: '#/components/schemas/Player'
+        blueRoomLeader:
+          $ref: '#/components/schemas/Player'
+
+  TIMER_UPDATE:
+    description: 타이머가 업데이트되었을 때 브로드캐스트 (1초마다)
+    direction: server-to-client
+    payload:
+      type: object
+      required:
+        - remaining
+      properties:
+        remaining:
+          type: integer
+          minimum: 0
+
+  LEADER_CHANGED:
+    description: 방장이 변경되었을 때 브로드캐스트
+    direction: server-to-client
+    payload:
+      type: object
+      required:
+        - room
+        - newLeader
+      properties:
+        room:
+          $ref: '#/components/schemas/RoomColor'
+        newLeader:
+          $ref: '#/components/schemas/Player'
+
+  HOSTAGE_SELECTED:
+    description: 방장이 인질을 선택했을 때 해당 방에 브로드캐스트
+    direction: server-to-client
+    payload:
+      type: object
+      required:
+        - room
+        - hostage
+      properties:
+        room:
+          $ref: '#/components/schemas/RoomColor'
+        hostage:
+          $ref: '#/components/schemas/Player'
+
+  HOSTAGE_EXCHANGED:
+    description: 인질 교환이 완료되었을 때 브로드캐스트
+    direction: server-to-client
+    payload:
+      type: object
+      required:
+        - exchange
+      properties:
+        exchange:
+          $ref: '#/components/schemas/HostageExchange'
+
+  GAME_ENDED:
+    description: 게임이 종료되었을 때 브로드캐스트
+    direction: server-to-client
+    payload:
+      type: object
+      required:
+        - result
+      properties:
+        result:
+          $ref: '#/components/schemas/GameResult'
