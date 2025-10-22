@@ -29,13 +29,13 @@
 
 **Purpose**: 프로젝트 초기화 및 기본 구조 생성
 
-- [ ] T001 Create backend directory structure (cmd/server, internal/models, internal/services, internal/handlers, internal/websocket, tests/)
-- [ ] T002 [P] Initialize Go module (go mod init) in backend/ with Gin and Gorilla WebSocket dependencies
-- [ ] T003 [P] Create frontend directory structure with Vite React TypeScript template
-- [ ] T004 [P] Configure backend linting (golangci-lint) and formatting (gofmt)
-- [ ] T005 [P] Configure frontend linting (ESLint) and formatting (Prettier) in frontend/
-- [ ] T006 [P] Setup CORS configuration for development in backend/cmd/server/main.go
-- [ ] T007 [P] Create environment configuration files (.env.example) for backend and frontend
+- [X] T001 Create backend directory structure (cmd/server, internal/models, internal/services, internal/handlers, internal/websocket, tests/)
+- [X] T002 [P] Initialize Go module (go mod init) in backend/ with Gin and Gorilla WebSocket dependencies
+- [X] T003 [P] Create frontend directory structure with Vite React TypeScript template
+- [X] T004 [P] Configure backend linting (golangci-lint) and formatting (gofmt)
+- [X] T005 [P] Configure frontend linting (ESLint) and formatting (Prettier) in frontend/
+- [X] T006 [P] Setup CORS configuration for development in backend/cmd/server/main.go
+- [X] T007 [P] Create environment configuration files (.env.example) for backend and frontend
 
 ---
 
@@ -47,31 +47,31 @@
 
 ### 백엔드 기초 인프라
 
-- [ ] T008 **TEST FIRST**: Create unit test for room code generation in backend/internal/services/room_service_test.go
-- [ ] T009 Implement room code generation function in backend/internal/services/room_service.go (6-digit alphanumeric, unique)
-- [ ] T010 **TEST FIRST**: Create unit test for in-memory room store CRUD operations in backend/internal/store/room_store_test.go
-- [ ] T011 Implement thread-safe in-memory room store in backend/internal/store/room_store.go (sync.RWMutex)
-- [ ] T012 [P] Define core domain models (Player, Room, RoomStatus, TeamColor, RoomColor) in backend/internal/models/player.go and backend/internal/models/room.go
-- [ ] T013 [P] Define game domain models (GameSession, Role) in backend/internal/models/game_session.go
-- [ ] T014 [P] Create error types and constants in backend/internal/models/errors.go
-- [ ] T015 [P] Setup Gin router with health check endpoint in backend/cmd/server/main.go
-- [ ] T016 **TEST FIRST**: Create WebSocket Hub test in backend/internal/websocket/hub_test.go
-- [ ] T017 Implement WebSocket Hub with register/unregister/broadcast channels in backend/internal/websocket/hub.go
-- [ ] T017.1 **TEST FIRST**: Create player reconnection logic test in backend/internal/websocket/hub_test.go (30-second grace period)
-- [ ] T017.2 Implement player reconnection logic (30-second grace period) in backend/internal/websocket/hub.go
-- [ ] T017.3 Implement PLAYER_DISCONNECTED broadcast when player connection lost in backend/internal/websocket/hub.go (FR-016)
-- [ ] T018 [P] **TEST FIRST**: Create WebSocket Client test in backend/internal/websocket/client_test.go
-- [ ] T019 [P] Implement WebSocket Client with read/write pumps in backend/internal/websocket/client.go
-- [ ] T020 Create WebSocket message types and serialization in backend/internal/websocket/messages.go
+- [X] T008 **TEST FIRST**: Create unit test for room code generation in backend/internal/services/room_service_test.go
+- [X] T009 Implement room code generation function in backend/internal/services/room_service.go (6-digit alphanumeric, unique)
+- [X] T010 **TEST FIRST**: Create unit test for in-memory room store CRUD operations in backend/internal/store/room_store_test.go
+- [X] T011 Implement thread-safe in-memory room store in backend/internal/store/room_store.go (sync.RWMutex)
+- [X] T012 [P] Define core domain models (Player, Room, RoomStatus, TeamColor, RoomColor) in backend/internal/models/player.go and backend/internal/models/room.go
+- [X] T013 [P] Define game domain models (GameSession, Role) in backend/internal/models/game_session.go
+- [X] T014 [P] Create error types and constants in backend/internal/models/errors.go
+- [X] T015 [P] Setup Gin router with health check endpoint in backend/cmd/server/main.go
+- [X] T016 **TEST FIRST**: Create WebSocket Hub test in backend/internal/websocket/hub_test.go
+- [X] T017 Implement WebSocket Hub with register/unregister/broadcast channels in backend/internal/websocket/hub.go
+- [X] T017.1 **TEST FIRST**: Create player reconnection logic test in backend/internal/websocket/hub_test.go (30-second grace period)
+- [X] T017.2 Implement player reconnection logic (30-second grace period) in backend/internal/websocket/hub.go
+- [X] T017.3 Implement PLAYER_DISCONNECTED broadcast when player connection lost in backend/internal/websocket/hub.go (FR-016)
+- [X] T018 [P] **TEST FIRST**: Create WebSocket Client test in backend/internal/websocket/client_test.go
+- [X] T019 [P] Implement WebSocket Client with read/write pumps in backend/internal/websocket/client.go
+- [X] T020 Create WebSocket message types and serialization in backend/internal/websocket/messages.go
 
 ### 프론트엔드 기초 인프라
 
-- [ ] T021 [P] Define TypeScript types for all domain models in frontend/src/types/game.types.ts (Player, Room, GameSession, Role, etc.)
-- [ ] T022 [P] Create API client base configuration with fetch wrapper in frontend/src/services/api.ts
-- [ ] T023 [P] **TEST FIRST**: Create useWebSocket hook test in frontend/src/hooks/__tests__/useWebSocket.test.ts
-- [ ] T024 [P] Implement useWebSocket custom hook in frontend/src/hooks/useWebSocket.ts
-- [ ] T025 [P] Setup React Router with routes (/, /lobby/:roomCode, /game/:roomCode) in frontend/src/App.tsx
-- [ ] T026 [P] Create layout components (Header, Footer) in frontend/src/components/Layout.tsx
+- [X] T021 [P] Define TypeScript types for all domain models in frontend/src/types/game.types.ts (Player, Room, GameSession, Role, etc.)
+- [X] T022 [P] Create API client base configuration with fetch wrapper in frontend/src/services/api.ts
+- [ ] T023 [P] **TEST FIRST**: Create useWebSocket hook test in frontend/src/hooks/__tests__/useWebSocket.test.ts (Deferred to integration phase)
+- [X] T024 [P] Implement useWebSocket custom hook in frontend/src/hooks/useWebSocket.ts
+- [X] T025 [P] Setup React Router with routes (/, /lobby/:roomCode, /game/:roomCode) in frontend/src/App.tsx
+- [X] T026 [P] Create layout components (Header, Footer) in frontend/src/components/Layout.tsx
 
 **Checkpoint**: Foundation ready - 사용자 스토리 구현 시작 가능
 
