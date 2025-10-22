@@ -59,6 +59,7 @@
 - [ ] T017 Implement WebSocket Hub with register/unregister/broadcast channels in backend/internal/websocket/hub.go
 - [ ] T017.1 **TEST FIRST**: Create player reconnection logic test in backend/internal/websocket/hub_test.go (30-second grace period)
 - [ ] T017.2 Implement player reconnection logic (30-second grace period) in backend/internal/websocket/hub.go
+- [ ] T017.3 Implement PLAYER_DISCONNECTED broadcast when player connection lost in backend/internal/websocket/hub.go (FR-015)
 - [ ] T018 [P] **TEST FIRST**: Create WebSocket Client test in backend/internal/websocket/client_test.go
 - [ ] T019 [P] Implement WebSocket Client with read/write pumps in backend/internal/websocket/client.go
 - [ ] T020 Create WebSocket message types and serialization in backend/internal/websocket/messages.go
@@ -109,9 +110,10 @@
 - [ ] T046 [US1] Implement PLAYER_LEFT broadcast in WebSocket Hub for backend/internal/websocket/hub.go
 - [ ] T047 [US1] Implement NICKNAME_CHANGED broadcast in WebSocket Hub for backend/internal/websocket/hub.go
 - [ ] T048 [US1] Wire all US1 routes to Gin router in backend/cmd/server/main.go
-- [ ] T048.1 [US1] Add roundCount and roundDuration fields to Room model in backend/internal/models/room.go (FR-020)
-- [ ] T048.2 [US1] Add validation for round settings (roundCount: 3-7, roundDuration: 60-600 seconds) in backend/internal/services/room_service.go (FR-020)
-- [ ] T048.3 [US1] Add PATCH /api/v1/rooms/{roomCode}/settings endpoint for updating round settings in backend/internal/handlers/room_handler.go (FR-020)
+- [ ] T048.1 [US1] Add roundCount, roundDuration, and hostageExchangePattern fields to Room model in backend/internal/models/room.go (FR-020, FR-012)
+- [ ] T048.2 [US1] Define HostageExchangePattern enum (FIXED, PROGRESSIVE, LATE_SURGE) in backend/internal/models/room.go (FR-012)
+- [ ] T048.3 [US1] Add validation for round settings (roundCount: 3-7, roundDuration: 60-600 seconds, pattern: valid enum) in backend/internal/services/room_service.go (FR-020, FR-012)
+- [ ] T048.4 [US1] Add PATCH /api/v1/rooms/{roomCode}/settings endpoint for updating round settings and hostage pattern in backend/internal/handlers/room_handler.go (FR-020, FR-012)
 
 ### 프론트엔드 Tests for US1 (TDD - 먼저 작성)
 
@@ -132,11 +134,11 @@
 - [ ] T060 [US1] Create LobbyPage with player list and WebSocket connection in frontend/src/pages/LobbyPage.tsx
 - [ ] T061 [US1] Create PlayerList component showing all players in room in frontend/src/components/PlayerList.tsx
 - [ ] T062 [US1] Create NicknameEditor component for editing own nickname in frontend/src/components/NicknameEditor.tsx
-- [ ] T063 [US1] Integrate PLAYER_JOINED/PLAYER_LEFT/NICKNAME_CHANGED WebSocket messages in frontend/src/pages/LobbyPage.tsx
+- [ ] T063 [US1] Integrate PLAYER_JOINED/PLAYER_LEFT/PLAYER_DISCONNECTED/NICKNAME_CHANGED WebSocket messages in frontend/src/pages/LobbyPage.tsx (FR-015)
 - [ ] T064 [US1] Add error handling for room not found and game in progress in frontend/src/pages/LobbyPage.tsx
-- [ ] T064.1 [P] [US1] Create RoundSettings component for configuring rounds in frontend/src/components/RoundSettings.tsx (FR-020)
-- [ ] T064.2 [US1] Integrate RoundSettings component into LobbyPage (visible only to room leader) in frontend/src/pages/LobbyPage.tsx (FR-020)
-- [ ] T064.3 [US1] Add updateRoomSettings API function in frontend/src/services/api.ts (FR-020)
+- [ ] T064.1 [P] [US1] Create RoundSettings component for configuring rounds and hostage pattern in frontend/src/components/RoundSettings.tsx (FR-020, FR-012)
+- [ ] T064.2 [US1] Integrate RoundSettings component into LobbyPage (visible only to room owner) in frontend/src/pages/LobbyPage.tsx (FR-020, FR-012)
+- [ ] T064.3 [US1] Add updateRoomSettings API function in frontend/src/services/api.ts (FR-020, FR-012)
 
 **Checkpoint**: User Story 1 완료 - 방 생성, 플레이어 입장, 닉네임 변경, 라운드 설정 기능 동작 확인
 
@@ -160,7 +162,7 @@
 
 - [ ] T070 [US2] Define predefined roles (RolePresident, RoleBomber, RoleGeneral) in backend/internal/models/role.go
 - [ ] T071 [US2] Implement team assignment algorithm (AssignTeams - FR-007) in backend/internal/services/game_service.go
-- [ ] T072 [US2] Implement role distribution algorithm (FR-006, FR-008: President=RED, Bomber=BLUE) in backend/internal/services/game_service.go
+- [ ] T072 [US2] Implement role distribution algorithm (FR-006, FR-008: President=BLUE, Bomber=RED) in backend/internal/services/game_service.go
 - [ ] T073 [US2] Implement GameService.StartGame (validate >=6 players, create session, assign teams, assign roles) in backend/internal/services/game_service.go
 - [ ] T074 [US2] Create POST /api/v1/rooms/{roomCode}/game/start handler in backend/internal/handlers/game_handler.go
 - [ ] T075 [US2] Implement GAME_STARTED broadcast in WebSocket Hub for backend/internal/websocket/hub.go
@@ -241,6 +243,7 @@
 ### 백엔드 Tests for US4 (TDD - 먼저 작성)
 
 - [ ] T111 [P] [US4] **TEST FIRST**: Contract test for POST /api/v1/rooms/{roomCode}/game/hostages in backend/tests/integration/game_handler_test.go
+- [ ] T111.1 [P] [US4] **TEST FIRST**: Unit test for GetHostageCount with all three patterns (FIXED, PROGRESSIVE, LATE_SURGE) in backend/internal/services/game_service_test.go (FR-012)
 - [ ] T112 [P] [US4] **TEST FIRST**: Unit test for room assignment algorithm (AssignRooms FR-011) in backend/internal/services/game_service_test.go
 - [ ] T113 [P] [US4] **TEST FIRST**: Unit test for leader assignment algorithm (AssignLeaders FR-024) in backend/internal/services/game_service_test.go
 - [ ] T114 [P] [US4] **TEST FIRST**: Unit test for GameService.ExchangeHostages in backend/internal/services/game_service_test.go
@@ -250,7 +253,8 @@
 
 - [ ] T116 [US4] Implement room assignment algorithm (AssignRooms - RED_ROOM/BLUE_ROOM equal split) in backend/internal/services/game_service.go
 - [ ] T117 [US4] Implement leader assignment algorithm (AssignLeaders - first player in each room FR-024) in backend/internal/services/game_service.go
-- [ ] T118 [US4] Update GameService.StartRound to call AssignRooms and AssignLeaders in backend/internal/services/game_service.go
+- [ ] T117.1 [US4] Implement GetHostageCount function (calculate exchange count based on pattern: FIXED=1, PROGRESSIVE=1/1/2/2/3+, LATE_SURGE=1/1/1/3+) in backend/internal/services/game_service.go (FR-012)
+- [ ] T118 [US4] Update GameService.StartRound to call AssignRooms, AssignLeaders, and GetHostageCount in backend/internal/services/game_service.go
 - [ ] T119 [US4] Implement GameService.SelectHostage (validate leader, store selection, 60s timeout with auto-random selection per FR-011.1) in backend/internal/services/game_service.go
 - [ ] T120 [US4] Implement GameService.ExchangeHostages (swap rooms, record HostageExchange with autoSelected flag) in backend/internal/services/game_service.go
 - [ ] T121 [US4] Create POST /api/v1/rooms/{roomCode}/game/hostages handler in backend/internal/handlers/game_handler.go
@@ -326,6 +330,14 @@
 **Purpose**: 여러 사용자 스토리에 영향을 미치는 개선사항 및 품질 향상
 
 - [ ] T156 [P] Add connection error handling for WebSocket disconnections in frontend/src/hooks/useWebSocket.ts
+- [ ] T156.1 [P] **TEST FIRST**: Unit test for RoomService.TransferOwnership (FR-016) in backend/internal/services/room_service_test.go
+- [ ] T156.2 Implement RoomService.TransferOwnership (transfer to next player when owner leaves FR-016) in backend/internal/services/room_service.go
+- [ ] T156.3 Implement OWNER_CHANGED WebSocket broadcast in backend/internal/websocket/hub.go (FR-016)
+- [ ] T156.4 Integrate OWNER_CHANGED message handling in frontend/src/pages/LobbyPage.tsx (update UI to reflect new owner)
+- [ ] T157 [P] **TEST FIRST**: Unit test for GameService.CheckMinimumPlayers (FR-017) in backend/internal/services/game_service_test.go
+- [ ] T157.1 Implement GameService.CheckMinimumPlayers (check <6 players during game, pause/warn FR-017) in backend/internal/services/game_service.go
+- [ ] T157.2 Implement MINIMUM_PLAYER_WARNING WebSocket broadcast in backend/internal/websocket/hub.go (FR-017)
+- [ ] T157.3 Integrate MINIMUM_PLAYER_WARNING message in frontend/src/pages/GamePage.tsx (show warning modal and pause game)
 - [ ] T158 [P] Add validation middleware for all request payloads in backend/internal/handlers/validation.go
 - [ ] T159 [P] Add logging for all critical operations (room creation, game start, round transitions) in backend/internal/services/
 - [ ] T160 [P] Implement graceful shutdown for WebSocket Hub in backend/cmd/server/main.go
@@ -456,15 +468,15 @@ Task T057: "Implement updateNickname API function"
 
 ## Task Count Summary
 
-- **Total**: 169 tasks
+- **Total**: 182 tasks (updated after remediation)
 - **Phase 1 (Setup)**: 7 tasks
-- **Phase 2 (Foundational)**: 19 tasks
-- **Phase 3 (US1)**: 38 tasks (14 backend tests, 11 backend impl, 5 frontend tests, 8 frontend impl)
+- **Phase 2 (Foundational)**: 20 tasks (added T017.3 for PLAYER_DISCONNECTED)
+- **Phase 3 (US1)**: 39 tasks (14 backend tests, 12 backend impl, 5 frontend tests, 8 frontend impl)
 - **Phase 4 (US2)**: 23 tasks (5 backend tests, 8 backend impl, 3 frontend tests, 7 frontend impl)
 - **Phase 5 (US3)**: 23 tasks (5 backend tests, 8 backend impl, 3 frontend tests, 7 frontend impl)
-- **Phase 6 (US4)**: 27 tasks (5 backend tests, 10 backend impl, 3 frontend tests, 9 frontend impl)
+- **Phase 6 (US4)**: 29 tasks (6 backend tests, 11 backend impl, 3 frontend tests, 9 frontend impl)
 - **Phase 7 (US5)**: 18 tasks (4 backend tests, 6 backend impl, 3 frontend tests, 5 frontend impl)
-- **Phase 8 (Polish)**: 14 tasks
+- **Phase 8 (Polish)**: 23 tasks (includes FR-015, FR-016, FR-017 cross-cutting fixes)
 
 **Parallel Opportunities**:
 - Setup: 5 tasks in parallel
@@ -472,4 +484,4 @@ Task T057: "Implement updateNickname API function"
 - After Foundational: All 5 user stories can start in parallel (team capacity permitting)
 - Within each story: Multiple tests, models, and API functions can run in parallel
 
-**MVP Scope**: Phase 1 + Phase 2 + Phase 3 (User Story 1) = 64 tasks
+**MVP Scope**: Phase 1 + Phase 2 + Phase 3 (User Story 1) = 66 tasks
