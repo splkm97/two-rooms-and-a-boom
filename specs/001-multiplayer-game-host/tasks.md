@@ -188,26 +188,26 @@
 
 ### 백엔드 Tests for US3 (TDD - 먼저 작성)
 
-- [ ] T086 [P] [US3] **TEST FIRST**: Contract test for POST /api/v1/rooms/{roomCode}/game/reset in backend/tests/integration/game_handler_test.go
-- [ ] T087 [P] [US3] **TEST FIRST**: Unit test for GameService.ResetGame in backend/internal/services/game_service_test.go
-- [ ] T088 [P] [US3] **TEST FIRST**: Integration test for GAME_RESET WebSocket broadcast in backend/tests/integration/websocket_test.go
+- [X] T086 [P] [US3] **TEST FIRST**: Contract test for POST /api/v1/rooms/{roomCode}/game/reset in backend/tests/integration/game_handler_test.go
+- [X] T087 [P] [US3] **TEST FIRST**: Unit test for GameService.ResetGame in backend/internal/services/game_service_test.go
+- [X] T088 [P] [US3] **TEST FIRST**: Integration test for GAME_RESET WebSocket broadcast in backend/tests/integration/websocket_test.go
 
 ### 백엔드 Implementation for US3
 
-- [ ] T089 [US3] Implement GameService.ResetGame (clear session, reset player roles/rooms, set room status to WAITING) in backend/internal/services/game_service.go
-- [ ] T090 [US3] Create POST /api/v1/rooms/{roomCode}/game/reset handler in backend/internal/handlers/game_handler.go
-- [ ] T091 [US3] Implement GAME_RESET broadcast in WebSocket Hub for backend/internal/websocket/hub.go
-- [ ] T092 [US3] Wire US3 routes to Gin router in backend/cmd/server/main.go
+- [X] T089 [US3] Implement GameService.ResetGame (clear session, reset player roles/rooms, set room status to WAITING) in backend/internal/services/game_service.go
+- [X] T090 [US3] Create POST /api/v1/rooms/{roomCode}/game/reset handler in backend/internal/handlers/game_handler.go
+- [X] T091 [US3] Implement GAME_RESET broadcast in WebSocket Hub for backend/internal/websocket/hub.go
+- [X] T092 [US3] Wire US3 routes to Gin router in backend/cmd/server/main.go
 
 ### 프론트엔드 Tests for US3 (TDD - 먼저 작성)
 
-- [ ] T093 [P] [US3] **TEST FIRST**: Test ResetButton component in frontend/src/components/__tests__/ResetButton.test.tsx
+- [ ] T093 [P] [US3] **TEST FIRST**: Test ResetButton component in frontend/src/components/__tests__/ResetButton.test.tsx (Deferred - implement with React Testing Library in Phase 6)
 
 ### 프론트엔드 Implementation for US3
 
-- [ ] T094 [P] [US3] Implement resetGame API function in frontend/src/services/api.ts
-- [ ] T095 [US3] Add "대기실로 돌아가기" button in GamePage (visible only to room owner) in frontend/src/pages/GamePage.tsx
-- [ ] T096 [US3] Integrate GAME_RESET WebSocket message in frontend/src/pages/GamePage.tsx (redirect to lobby)
+- [X] T094 [P] [US3] Implement resetGame API function in frontend/src/services/api.ts
+- [X] T095 [US3] Add "대기실로 돌아가기" button in GamePage (visible only to room owner) in frontend/src/pages/GamePage.tsx
+- [X] T096 [US3] Integrate GAME_RESET WebSocket message in frontend/src/pages/GamePage.tsx (redirect to lobby)
 
 **Checkpoint**: User Story 3 완료 - 게임 종료 및 재시작 기능 동작 확인
 
