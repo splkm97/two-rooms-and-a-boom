@@ -1,7 +1,7 @@
 // T058: Create LobbyPage with player list and WebSocket connection
 // T061: Integrate PLAYER_JOINED/PLAYER_LEFT/PLAYER_DISCONNECTED/NICKNAME_CHANGED WebSocket messages
 // T062: Add error handling for room not found and game in progress
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { PlayerList } from '../components/PlayerList';
@@ -22,6 +22,10 @@ export function LobbyPage() {
 
   const { isConnected, lastMessage } = useWebSocket(roomCode || '');
 
+  // Ref to track if we're already joining to prevent React Strict Mode double execution
+  const isJoiningRef = useRef(false);
+  const hasJoinedRef = useRef(false);
+
   // Initial room join
   useEffect(() => {
     const initializeRoom = async () => {
@@ -31,6 +35,13 @@ export function LobbyPage() {
         return;
       }
 
+      // Prevent duplicate joins from React Strict Mode
+      if (isJoiningRef.current || hasJoinedRef.current) {
+        return;
+      }
+
+      isJoiningRef.current = true;
+
       try {
         // First, get room info to check if it exists
         const roomData = await getRoom(roomCode);
@@ -39,11 +50,33 @@ export function LobbyPage() {
         if (roomData.status === 'IN_PROGRESS') {
           setError('이미 게임이 시작된 방입니다');
           setLoading(false);
+          isJoiningRef.current = false;
           return;
         }
 
-        // Join the room
-        const player = await joinRoom(roomCode);
+        // Check if we already have a playerId for this room
+        const storedPlayerId = localStorage.getItem(`playerId_${roomCode}`);
+
+        let player;
+        if (storedPlayerId) {
+          // Try to find existing player in room
+          const existingPlayer = roomData.players.find((p: any) => p.id === storedPlayerId);
+          if (existingPlayer) {
+            player = existingPlayer;
+          } else {
+            // Player ID exists but not in room anymore, join again
+            player = await joinRoom(roomCode);
+            localStorage.setItem(`playerId_${roomCode}`, player.id);
+            localStorage.setItem(`isOwner_${roomCode}`, String(player.isOwner));
+          }
+        } else {
+          // Join the room for the first time
+          player = await joinRoom(roomCode);
+          localStorage.setItem(`playerId_${roomCode}`, player.id);
+          localStorage.setItem(`isOwner_${roomCode}`, String(player.isOwner));
+        }
+
+        hasJoinedRef.current = true;
         setCurrentPlayer(player);
 
         // Fetch updated room data
@@ -63,6 +96,8 @@ export function LobbyPage() {
           setError(err.message || '방 입장에 실패했습니다');
         }
         setLoading(false);
+      } finally {
+        isJoiningRef.current = false;
       }
     };
 
