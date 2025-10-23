@@ -225,9 +225,9 @@
 - [X] T102 [P] Add validation middleware for all request payloads in backend/internal/handlers/validation.go
 - [X] T103 [P] Add logging for all critical operations (room creation, game start) in backend/internal/services/
 - [X] T104 [P] Implement graceful shutdown for WebSocket Hub in backend/cmd/server/main.go
-- [ ] T105 [P] Add loading states and spinners for all async operations in frontend/src/components/
-- [ ] T106 [P] Improve error messages with user-friendly Korean text in frontend/src/services/api.ts
-- [ ] T107 [P] Add browser compatibility checks (WebSocket support) in frontend/src/App.tsx
+- [X] T105 [P] Add loading states and spinners for all async operations in frontend/src/components/
+- [X] T106 [P] Improve error messages with user-friendly Korean text in frontend/src/services/api.ts
+- [X] T107 [P] Add browser compatibility checks (WebSocket support) in frontend/src/App.tsx
 - [ ] T108 [P] Create end-to-end test for full flow (create room → join → start game → see roles → reset) in backend/tests/integration/e2e_test.go
 - [ ] T109 [P] Update README.md with quickstart instructions
 

@@ -1,8 +1,9 @@
 // T056: Create HomePage with "방 만들기" and "방 참가" buttons
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createRoom } from '../services/api';
+import { createRoom, APIError } from '../services/api';
 import { Layout } from '../components/Layout';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -17,7 +18,8 @@ export function HomePage() {
       const room = await createRoom(10); // Default 10 players
       navigate(`/lobby/${room.code}`);
     } catch (err: any) {
-      setError(err.message || '방 생성에 실패했습니다');
+      // T105, T106: Use user-friendly Korean error message
+      setError(err instanceof APIError ? err.userMessage : '방 생성에 실패했습니다');
     } finally {
       setIsCreating(false);
     }

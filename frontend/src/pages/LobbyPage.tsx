@@ -6,8 +6,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { PlayerList } from '../components/PlayerList';
 import { NicknameEditor } from '../components/NicknameEditor';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { getRoom, joinRoom, updateNickname, startGame } from '../services/api';
+import { getRoom, joinRoom, updateNickname, startGame, APIError } from '../services/api';
 import type { Player, Room } from '../types/game.types';
 
 export function LobbyPage() {
@@ -86,15 +87,8 @@ export function LobbyPage() {
         setLoading(false);
       } catch (err: any) {
         console.error('Failed to join room:', err);
-        if (err.code === 'ROOM_NOT_FOUND') {
-          setError('방을 찾을 수 없습니다. 방 코드를 확인해주세요.');
-        } else if (err.code === 'ROOM_FULL') {
-          setError('방이 가득 찼습니다');
-        } else if (err.code === 'GAME_ALREADY_STARTED') {
-          setError('이미 게임이 시작된 방입니다');
-        } else {
-          setError(err.message || '방 입장에 실패했습니다');
-        }
+        // T106: Use user-friendly Korean error message
+        setError(err instanceof APIError ? err.userMessage : '방 입장에 실패했습니다');
         setLoading(false);
       } finally {
         isJoiningRef.current = false;
@@ -220,17 +214,17 @@ export function LobbyPage() {
       // Navigation will happen automatically via GAME_STARTED WebSocket message
     } catch (err: any) {
       console.error('Failed to start game:', err);
-      alert(err.message || '게임 시작에 실패했습니다');
+      // T106: Use user-friendly Korean error message
+      alert(err instanceof APIError ? err.userMessage : '게임 시작에 실패했습니다');
       setIsStarting(false);
     }
   };
 
+  // T105: Add loading spinner
   if (loading) {
     return (
       <Layout>
-        <div style={{ textAlign: 'center', padding: '2rem' }}>
-          <p>로딩 중...</p>
-        </div>
+        <LoadingSpinner size="large" message="방 정보를 불러오는 중..." />
       </Layout>
     );
   }
