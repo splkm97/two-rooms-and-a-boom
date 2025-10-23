@@ -1,7 +1,13 @@
 package main
 
 import (
+	"context"
+	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kalee/two-rooms-and-a-boom/internal/handlers"
@@ -75,5 +81,34 @@ func main() {
 	// WebSocket route
 	r.GET("/ws/:roomCode", wsHandler.HandleWebSocket)
 
-	r.Run(":8080")
+	// T104: Implement graceful shutdown
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: r,
+	}
+
+	// Start server in a goroutine
+	go func() {
+		log.Println("[INFO] Server starting on :8080")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("[FATAL] Server failed to start: %v", err)
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("[INFO] Shutting down server...")
+
+	// The context is used to inform the server it has 5 seconds to finish
+	// the request it is currently handling
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("[FATAL] Server forced to shutdown: %v", err)
+	}
+
+	log.Println("[INFO] Server exited")
 }

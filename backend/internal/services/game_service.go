@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"log"
 	"math/rand"
 	"time"
 
@@ -201,8 +202,12 @@ func (s *GameService) StartGame(roomCode string) (*models.GameSession, error) {
 
 	// Save updated room
 	if err := s.roomStore.Update(room); err != nil {
+		log.Printf("[ERROR] Failed to start game: %v", err)
 		return nil, err
 	}
+
+	// T103: Log critical operation
+	log.Printf("[INFO] Game started: room=%s sessionID=%s players=%d", roomCode, sessionID, len(room.Players))
 
 	// Broadcast GAME_STARTED to all players (T074)
 	if s.hub != nil {

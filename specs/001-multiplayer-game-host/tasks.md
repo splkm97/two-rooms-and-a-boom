@@ -222,9 +222,9 @@
 - [X] T099 Implement RoomService.TransferOwnership (transfer to next player when owner leaves FR-017) in backend/internal/services/room_service.go
 - [X] T100 Implement OWNER_CHANGED WebSocket broadcast in backend/internal/websocket/hub.go (FR-017)
 - [X] T101 Integrate OWNER_CHANGED message handling in frontend/src/pages/LobbyPage.tsx (update UI to reflect new owner)
-- [ ] T102 [P] Add validation middleware for all request payloads in backend/internal/handlers/validation.go
-- [ ] T103 [P] Add logging for all critical operations (room creation, game start) in backend/internal/services/
-- [ ] T104 [P] Implement graceful shutdown for WebSocket Hub in backend/cmd/server/main.go
+- [X] T102 [P] Add validation middleware for all request payloads in backend/internal/handlers/validation.go
+- [X] T103 [P] Add logging for all critical operations (room creation, game start) in backend/internal/services/
+- [X] T104 [P] Implement graceful shutdown for WebSocket Hub in backend/cmd/server/main.go
 - [ ] T105 [P] Add loading states and spinners for all async operations in frontend/src/components/
 - [ ] T106 [P] Improve error messages with user-friendly Korean text in frontend/src/services/api.ts
 - [ ] T107 [P] Add browser compatibility checks (WebSocket support) in frontend/src/App.tsx

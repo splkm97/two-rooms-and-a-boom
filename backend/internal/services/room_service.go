@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"log"
 	"math/rand"
 	"time"
 
@@ -71,8 +72,12 @@ func (s *RoomService) CreateRoom(maxPlayers int) (*models.Room, error) {
 
 	// Store room
 	if err := s.roomStore.Create(room); err != nil {
+		log.Printf("[ERROR] Failed to create room: %v", err)
 		return nil, err
 	}
+
+	// T103: Log critical operation
+	log.Printf("[INFO] Room created: code=%s maxPlayers=%d", room.Code, room.MaxPlayers)
 
 	return room, nil
 }
@@ -115,8 +120,12 @@ func (s *RoomService) TransferOwnership(roomCode string, oldOwnerID string) (*mo
 
 	// Save updated room
 	if err := s.roomStore.Update(room); err != nil {
+		log.Printf("[ERROR] Failed to transfer ownership: %v", err)
 		return nil, err
 	}
+
+	// T103: Log critical operation
+	log.Printf("[INFO] Ownership transferred: room=%s oldOwner=%s newOwner=%s", roomCode, oldOwnerID, newOwner.ID)
 
 	return newOwner, nil
 }
