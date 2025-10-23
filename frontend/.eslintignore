@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.vite/
+
+# Coverage
+coverage/
+
+# Production bundles
+*.min.js
+*.bundle.js
+
+# Environment files
+.env*
+
+# Logs
+*.log
+
+# Vite cache
+.vite/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Test snapshots
+**/__snapshots__/
