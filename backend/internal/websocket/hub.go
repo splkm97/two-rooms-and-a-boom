@@ -194,6 +194,22 @@ func (h *Hub) BroadcastNicknameChanged(roomCode string, payload *NicknameChanged
 	return nil
 }
 
+// T100: Implement OWNER_CHANGED broadcast
+func (h *Hub) BroadcastOwnerChanged(roomCode string, payload *OwnerChangedPayload) error {
+	msg, err := NewMessage(MessageOwnerChanged, payload)
+	if err != nil {
+		return err
+	}
+
+	data, err := msg.Marshal()
+	if err != nil {
+		return err
+	}
+
+	h.BroadcastToRoom(roomCode, data)
+	return nil
+}
+
 // T074: Implement GAME_STARTED broadcast
 func (h *Hub) BroadcastGameStarted(roomCode string, payload interface{}) error {
 	msg, err := NewMessage(MessageGameStarted, payload)
