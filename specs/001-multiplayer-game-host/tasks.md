@@ -229,7 +229,7 @@
 - [X] T106 [P] Improve error messages with user-friendly Korean text in frontend/src/services/api.ts
 - [X] T107 [P] Add browser compatibility checks (WebSocket support) in frontend/src/App.tsx
 - [X] T108 [P] Create end-to-end test for full flow (create room → join → start game → see roles → reset) in backend/tests/integration/e2e_test.go
-- [ ] T109 [P] Update README.md with quickstart instructions
+- [X] T109 [P] Update README.md with quickstart instructions
 
 **Checkpoint**: Polish 완료 - 모든 에지 케이스 및 사용성 개선 적용
 
