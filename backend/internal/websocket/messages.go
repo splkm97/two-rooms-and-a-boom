@@ -86,3 +86,15 @@ func NewMessage(msgType MessageType, payload interface{}) (*Message, error) {
 func (m *Message) Marshal() ([]byte, error) {
 	return json.Marshal(m)
 }
+
+// UnmarshalPayload unmarshals the payload into the provided interface
+func (m *Message) UnmarshalPayload(v interface{}) error {
+	return json.Unmarshal(m.Payload, v)
+}
+
+// GetPayloadAsMap returns the payload as a map for testing purposes
+func (m *Message) GetPayloadAsMap() (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := json.Unmarshal(m.Payload, &result)
+	return result, err
+}

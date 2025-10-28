@@ -38,7 +38,15 @@ func setupWebSocketTestServer() (*httptest.Server, *store.RoomStore, *ws.Hub) {
 
 // connectWebSocket connects to the test WebSocket server
 func connectWebSocket(serverURL, roomCode string) (*websocket.Conn, error) {
+	return connectWebSocketWithPlayerID(serverURL, roomCode, "")
+}
+
+// connectWebSocketWithPlayerID connects to the test WebSocket server with a playerID
+func connectWebSocketWithPlayerID(serverURL, roomCode, playerID string) (*websocket.Conn, error) {
 	wsURL := "ws" + strings.TrimPrefix(serverURL, "http") + "/ws/" + roomCode
+	if playerID != "" {
+		wsURL += "?playerId=" + playerID
+	}
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	return conn, err
 }
@@ -98,9 +106,9 @@ func TestWebSocketBroadcasts(t *testing.T) {
 		}
 
 		// Verify payload contains player data
-		payload, ok := msg.Payload.(map[string]interface{})
-		if !ok {
-			t.Fatal("Expected payload to be a map")
+		payload, err := msg.GetPayloadAsMap()
+		if err != nil {
+			t.Fatalf("Failed to parse payload: %v", err)
 		}
 
 		playerData, ok := payload["player"].(map[string]interface{})
@@ -165,9 +173,9 @@ func TestWebSocketBroadcasts(t *testing.T) {
 		}
 
 		// Verify payload contains playerId
-		payload, ok := msg.Payload.(map[string]interface{})
-		if !ok {
-			t.Fatal("Expected payload to be a map")
+		payload, err := msg.GetPayloadAsMap()
+		if err != nil {
+			t.Fatalf("Failed to parse payload: %v", err)
 		}
 
 		if _, ok := payload["playerId"]; !ok {
@@ -211,12 +219,12 @@ func TestWebSocketBroadcasts(t *testing.T) {
 		// For this test, we'll verify the hub can broadcast NICKNAME_CHANGED
 
 		// Create NICKNAME_CHANGED message
-		msg := ws.Message{
-			Type: "NICKNAME_CHANGED",
-			Payload: map[string]interface{}{
-				"playerId":    "player1",
-				"newNickname": "새로운닉네임",
-			},
+		msg, err := ws.NewMessage("NICKNAME_CHANGED", map[string]interface{}{
+			"playerId":    "player1",
+			"newNickname": "새로운닉네임",
+		})
+		if err != nil {
+			t.Fatalf("Failed to create message: %v", err)
 		}
 
 		// Send message through WebSocket (this tests the broadcast mechanism)
@@ -406,16 +414,16 @@ func TestWebSocketGameMessages(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 
 		// Simulate GAME_STARTED broadcast
-		gameStartedMsg := ws.Message{
-			Type: "GAME_STARTED",
-			Payload: map[string]interface{}{
-				"roomCode":  room.Code,
-				"sessionId": "test-session-id",
-			},
+		gameStartedMsg, err := ws.NewMessage("GAME_STARTED", map[string]interface{}{
+			"roomCode":  room.Code,
+			"sessionId": "test-session-id",
+		})
+		if err != nil {
+			t.Fatalf("Failed to create message: %v", err)
 		}
 
 		// Broadcast to room
-		hub.Broadcast(room.Code, gameStartedMsg)
+		hub.Broadcast(room.Code, *gameStartedMsg)
 
 		// Both clients should receive GAME_STARTED
 		msg1, err := readWSMessage(conn1, 2*time.Second)
@@ -437,9 +445,9 @@ func TestWebSocketGameMessages(t *testing.T) {
 		}
 
 		// Verify payload contains sessionId
-		payload1, ok := msg1.Payload.(map[string]interface{})
-		if !ok {
-			t.Fatal("Expected payload to be a map")
+		payload1, err := msg1.GetPayloadAsMap()
+		if err != nil {
+			t.Fatalf("Failed to parse payload: %v", err)
 		}
 
 		if _, ok := payload1["sessionId"]; !ok {
@@ -469,8 +477,8 @@ func TestWebSocketGameMessages(t *testing.T) {
 		room.Players[0].RoomCode = room.Code
 		roomStore.Create(room)
 
-		// Connect client
-		conn1, err := connectWebSocket(server.URL, room.Code)
+		// Connect client with playerID
+		conn1, err := connectWebSocketWithPlayerID(server.URL, room.Code, "player1")
 		if err != nil {
 			t.Fatalf("Failed to connect WebSocket: %v", err)
 		}
@@ -479,18 +487,18 @@ func TestWebSocketGameMessages(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 
 		// Simulate ROLE_ASSIGNED unicast
-		roleAssignedMsg := ws.Message{
-			Type: "ROLE_ASSIGNED",
-			Payload: map[string]interface{}{
-				"playerId":  "player1",
-				"role":      "PRESIDENT",
-				"team":      "BLUE",
-				"roomColor": "BLUE_ROOM",
-			},
+		roleAssignedMsg, err := ws.NewMessage("ROLE_ASSIGNED", map[string]interface{}{
+			"playerId":  "player1",
+			"role":      "PRESIDENT",
+			"team":      "BLUE",
+			"roomColor": "BLUE_ROOM",
+		})
+		if err != nil {
+			t.Fatalf("Failed to create message: %v", err)
 		}
 
 		// Unicast to specific player (in actual implementation, this would be called from game service)
-		hub.Unicast(room.Code, "player1", roleAssignedMsg)
+		hub.Unicast(room.Code, "player1", *roleAssignedMsg)
 
 		// Client should receive ROLE_ASSIGNED
 		msg, err := readWSMessage(conn1, 2*time.Second)
@@ -503,9 +511,9 @@ func TestWebSocketGameMessages(t *testing.T) {
 		}
 
 		// Verify payload contains role information
-		payload, ok := msg.Payload.(map[string]interface{})
-		if !ok {
-			t.Fatal("Expected payload to be a map")
+		payload, err := msg.GetPayloadAsMap()
+		if err != nil {
+			t.Fatalf("Failed to parse payload: %v", err)
 		}
 
 		if role, ok := payload["role"].(string); !ok || role == "" {
@@ -551,8 +559,8 @@ func TestWebSocketGameMessages(t *testing.T) {
 		room.Players[1].RoomCode = room.Code
 		roomStore.Create(room)
 
-		// Connect two clients
-		conn1, err := connectWebSocket(server.URL, room.Code)
+		// Connect two clients with playerIDs
+		conn1, err := connectWebSocketWithPlayerID(server.URL, room.Code, "player1")
 		if err != nil {
 			t.Fatalf("Failed to connect first WebSocket: %v", err)
 		}
@@ -560,7 +568,7 @@ func TestWebSocketGameMessages(t *testing.T) {
 
 		time.Sleep(100 * time.Millisecond)
 
-		conn2, err := connectWebSocket(server.URL, room.Code)
+		conn2, err := connectWebSocketWithPlayerID(server.URL, room.Code, "player2")
 		if err != nil {
 			t.Fatalf("Failed to connect second WebSocket: %v", err)
 		}
@@ -572,17 +580,17 @@ func TestWebSocketGameMessages(t *testing.T) {
 		readWSMessage(conn1, 500*time.Millisecond)
 
 		// Unicast ROLE_ASSIGNED to player2 only
-		roleAssignedMsg := ws.Message{
-			Type: "ROLE_ASSIGNED",
-			Payload: map[string]interface{}{
-				"playerId":  "player2",
-				"role":      "BOMBER",
-				"team":      "RED",
-				"roomColor": "RED_ROOM",
-			},
+		roleAssignedMsg, err := ws.NewMessage("ROLE_ASSIGNED", map[string]interface{}{
+			"playerId":  "player2",
+			"role":      "BOMBER",
+			"team":      "RED",
+			"roomColor": "RED_ROOM",
+		})
+		if err != nil {
+			t.Fatalf("Failed to create message: %v", err)
 		}
 
-		hub.Unicast(room.Code, "player2", roleAssignedMsg)
+		hub.Unicast(room.Code, "player2", *roleAssignedMsg)
 
 		// conn2 should receive ROLE_ASSIGNED
 		msg2, err := readWSMessage(conn2, 2*time.Second)
@@ -662,15 +670,15 @@ func TestWebSocketGameMessages(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 
 		// Simulate GAME_RESET broadcast
-		gameResetMsg := ws.Message{
-			Type: "GAME_RESET",
-			Payload: map[string]interface{}{
-				"roomCode": room.Code,
-			},
+		gameResetMsg, err := ws.NewMessage("GAME_RESET", map[string]interface{}{
+			"roomCode": room.Code,
+		})
+		if err != nil {
+			t.Fatalf("Failed to create message: %v", err)
 		}
 
 		// Broadcast to room
-		hub.Broadcast(room.Code, gameResetMsg)
+		hub.Broadcast(room.Code, *gameResetMsg)
 
 		// Both clients should receive GAME_RESET
 		msg1, err := readWSMessage(conn1, 2*time.Second)
@@ -692,9 +700,9 @@ func TestWebSocketGameMessages(t *testing.T) {
 		}
 
 		// Verify payload contains roomCode
-		payload1, ok := msg1.Payload.(map[string]interface{})
-		if !ok {
-			t.Fatal("Expected payload to be a map")
+		payload1, err := msg1.GetPayloadAsMap()
+		if err != nil {
+			t.Fatalf("Failed to parse payload: %v", err)
 		}
 
 		if _, ok := payload1["roomCode"]; !ok {

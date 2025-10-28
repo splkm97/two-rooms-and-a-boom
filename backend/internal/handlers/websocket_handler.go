@@ -3,6 +3,7 @@ package handlers
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -40,6 +41,9 @@ func NewWebSocketHandler(hub *ws.Hub, roomService *services.RoomService, playerS
 func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	roomCode := c.Param("roomCode")
 
+	// Optional: Get playerID from query parameter
+	playerID := c.Query("playerId")
+
 	// Verify room exists
 	room, err := h.roomService.GetRoom(roomCode)
 	if err != nil {
@@ -53,26 +57,45 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	// Upgrade HTTP connection to WebSocket
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		log.Printf("Failed to upgrade connection: %v", err)
+		log.Printf("[ERROR] Failed to upgrade WebSocket connection for room %s: %v", roomCode, err)
 		return
 	}
+
+	log.Printf("[INFO] WebSocket connection upgraded successfully for room %s", roomCode)
 
 	// Create WebSocket client
 	client := ws.NewClient(h.hub, conn, roomCode)
 
-	// Register client with hub (using unexported channel through struct field access)
-	// Note: In Go, we can access the hub's register channel directly since it's in the same package context
-	// For now, we'll use a workaround by creating a public Register method
+	// Set playerID if provided
+	if playerID != "" {
+		client.SetPlayerID(playerID)
+		log.Printf("[INFO] WebSocket client registered with playerID: %s", playerID)
+	}
+
+	// Register client with hub
 	h.registerClient(client)
+
+	// Start client read/write pumps
+	go client.WritePump()
+	go client.ReadPump()
+
+	// Send welcome message in a goroutine to avoid blocking
+	go func() {
+		// Give pumps time to start
+		time.Sleep(100 * time.Millisecond)
+
+		welcomeMsg, _ := ws.NewMessage("CONNECTED", map[string]interface{}{
+			"roomCode": roomCode,
+			"message":  "WebSocket connected successfully",
+		})
+		h.hub.Broadcast(roomCode, *welcomeMsg)
+		log.Printf("[INFO] Sent CONNECTED message to room %s", roomCode)
+	}()
 
 	// Broadcast PLAYER_JOINED message
 	// In a real implementation, we'd get the player ID from the connection
 	// For now, we'll let the client handle this after connection
 	go h.broadcastPlayerJoined(roomCode, room)
-
-	// Start client read/write pumps
-	go client.WritePump()
-	go client.ReadPump()
 }
 
 // registerClient registers a client with the hub

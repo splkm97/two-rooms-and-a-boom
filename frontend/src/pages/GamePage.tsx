@@ -4,7 +4,7 @@ import type { Player, Role, TeamColor, RoomColor, WSMessage, RoleAssignedPayload
 import { useWebSocket } from '../hooks/useWebSocket';
 import { RoleCard } from '../components/RoleCard';
 import { RoomPlayerList } from '../components/RoomPlayerList';
-import { resetGame } from '../services/api';
+import { resetGame, getRoom } from '../services/api';
 
 // T081: Create GamePage with role card and room assignment display
 export function GamePage() {
@@ -13,8 +13,8 @@ export function GamePage() {
   const [role, setRole] = useState<Role | null>(null);
   const [team, setTeam] = useState<TeamColor | null>(null);
   const [currentRoom, setCurrentRoom] = useState<RoomColor | null>(null);
-  const [redRoomPlayers] = useState<Player[]>([]);
-  const [blueRoomPlayers] = useState<Player[]>([]);
+  const [redRoomPlayers, setRedRoomPlayers] = useState<Player[]>([]);
+  const [blueRoomPlayers, setBlueRoomPlayers] = useState<Player[]>([]);
   const [currentPlayerId, setCurrentPlayerId] = useState<string>('');
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [isResetting, setIsResetting] = useState<boolean>(false);
@@ -30,6 +30,54 @@ export function GamePage() {
       setIsOwner(storedIsOwner);
     }
   }, [roomCode]);
+
+  // Fetch role data on initial load (in case GAME_STARTED was missed)
+  useEffect(() => {
+    const fetchInitialRoleData = async () => {
+      if (!roomCode || !currentPlayerId) return;
+      if (role && team && currentRoom) return; // Already have role data
+
+      try {
+        console.log('[GamePage] Fetching initial role data for:', roomCode, currentPlayerId);
+        const roomData = await getRoom(roomCode);
+        console.log('[GamePage] Initial room data received:', roomData);
+
+        // Check if game has started
+        if (roomData.status !== 'IN_PROGRESS') {
+          console.log('[GamePage] Game not started yet, redirecting to lobby');
+          navigate(`/lobby/${roomCode}`);
+          return;
+        }
+
+        const currentPlayer = roomData.players.find((p: any) => p.id === currentPlayerId);
+        console.log('[GamePage] Current player found:', currentPlayer);
+
+        if (currentPlayer?.role) {
+          console.log('[GamePage] Setting initial role:', currentPlayer.role, currentPlayer.team, currentPlayer.currentRoom);
+          setRole(currentPlayer.role);
+          setTeam(currentPlayer.team);
+          setCurrentRoom(currentPlayer.currentRoom);
+
+          // Save role info to localStorage for reveal page
+          localStorage.setItem(`role_${roomCode}`, JSON.stringify(currentPlayer.role));
+          localStorage.setItem(`team_${roomCode}`, currentPlayer.team);
+
+          // Set room players
+          const redPlayers = roomData.players.filter((p: any) => p.currentRoom === 'RED_ROOM');
+          const bluePlayers = roomData.players.filter((p: any) => p.currentRoom === 'BLUE_ROOM');
+          console.log('[GamePage] Red room players:', redPlayers.length, 'Blue room players:', bluePlayers.length);
+          setRedRoomPlayers(redPlayers);
+          setBlueRoomPlayers(bluePlayers);
+        } else {
+          console.error('[GamePage] Player has no role assigned');
+        }
+      } catch (error) {
+        console.error('[GamePage] Failed to fetch initial role data:', error);
+      }
+    };
+
+    fetchInitialRoleData();
+  }, [roomCode, currentPlayerId, role, team, currentRoom, navigate]);
 
   // T095: Handle reset button click
   const handleResetGame = async () => {
@@ -51,6 +99,7 @@ export function GamePage() {
     if (!lastMessage) return;
 
     const message = lastMessage as WSMessage;
+    console.log('[GamePage] Received WebSocket message:', message.type, message);
 
     switch (message.type) {
       case 'ROLE_ASSIGNED': {
@@ -61,7 +110,48 @@ export function GamePage() {
         break;
       }
       case 'GAME_STARTED': {
-        // Could update game state or show notification
+        console.log('[GamePage] GAME_STARTED received, currentPlayerId:', currentPlayerId);
+        // Fetch room data to get player role
+        const fetchRoleData = async () => {
+          if (!roomCode) {
+            console.error('[GamePage] No roomCode available');
+            return;
+          }
+          if (!currentPlayerId) {
+            console.error('[GamePage] No currentPlayerId available');
+            return;
+          }
+
+          try {
+            console.log('[GamePage] Fetching room data for:', roomCode);
+            const roomData = await getRoom(roomCode);
+            console.log('[GamePage] Room data received:', roomData);
+            const currentPlayer = roomData.players.find((p: any) => p.id === currentPlayerId);
+            console.log('[GamePage] Current player:', currentPlayer);
+            if (currentPlayer?.role) {
+              console.log('[GamePage] Setting role:', currentPlayer.role, currentPlayer.team, currentPlayer.currentRoom);
+              setRole(currentPlayer.role);
+              setTeam(currentPlayer.team);
+              setCurrentRoom(currentPlayer.currentRoom);
+
+              // Save role info to localStorage for reveal page
+              localStorage.setItem(`role_${roomCode}`, JSON.stringify(currentPlayer.role));
+              localStorage.setItem(`team_${roomCode}`, currentPlayer.team);
+
+              // Set room players
+              const redPlayers = roomData.players.filter((p: any) => p.currentRoom === 'RED_ROOM');
+              const bluePlayers = roomData.players.filter((p: any) => p.currentRoom === 'BLUE_ROOM');
+              console.log('[GamePage] Red room players:', redPlayers.length, 'Blue room players:', bluePlayers.length);
+              setRedRoomPlayers(redPlayers);
+              setBlueRoomPlayers(bluePlayers);
+            } else {
+              console.error('[GamePage] Player has no role assigned');
+            }
+          } catch (error) {
+            console.error('[GamePage] Failed to fetch role data:', error);
+          }
+        };
+        fetchRoleData();
         break;
       }
       case 'GAME_RESET': {
@@ -72,7 +162,7 @@ export function GamePage() {
       default:
         break;
     }
-  }, [lastMessage, navigate, roomCode]);
+  }, [lastMessage, navigate, roomCode, currentPlayerId]);
 
   if (!role || !team || !currentRoom) {
     return (
@@ -108,6 +198,25 @@ export function GamePage() {
       >
         <div>
           <RoleCard role={role} team={team} currentRoom={currentRoom} />
+
+          {/* 역할 공개 버튼 */}
+          <button
+            onClick={() => navigate(`/reveal/${roomCode}`)}
+            style={{
+              marginTop: '1rem',
+              width: '100%',
+              padding: '1rem',
+              backgroundColor: team === 'RED' ? '#dc2626' : '#2563eb',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+            }}
+          >
+            📱 정보 교환 화면
+          </button>
         </div>
 
         <div>

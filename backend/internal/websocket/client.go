@@ -49,12 +49,20 @@ func NewClient(hub *Hub, conn *websocket.Conn, roomCode string) *Client {
 	}
 }
 
+// SetPlayerID sets the player ID for this client
+func (c *Client) SetPlayerID(playerID string) {
+	c.playerID = playerID
+}
+
 // ReadPump pumps messages from the WebSocket connection to the hub
 func (c *Client) ReadPump() {
 	defer func() {
+		log.Printf("[INFO] ReadPump exiting for room %s", c.roomCode)
 		c.hub.unregister <- c
 		c.conn.Close()
 	}()
+
+	log.Printf("[INFO] ReadPump started for room %s", c.roomCode)
 
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -67,11 +75,14 @@ func (c *Client) ReadPump() {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
+				log.Printf("[ERROR] Unexpected close error in room %s: %v", c.roomCode, err)
+			} else {
+				log.Printf("[INFO] Connection closed normally in room %s: %v", c.roomCode, err)
 			}
 			break
 		}
 		// Messages from client can be handled here if needed
+		log.Printf("[DEBUG] Received message from client in room %s: %s", c.roomCode, string(message))
 		_ = message
 	}
 }
@@ -80,9 +91,12 @@ func (c *Client) ReadPump() {
 func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
+		log.Printf("[INFO] WritePump exiting for room %s", c.roomCode)
 		ticker.Stop()
 		c.conn.Close()
 	}()
+
+	log.Printf("[INFO] WritePump started for room %s", c.roomCode)
 
 	for {
 		select {
@@ -90,12 +104,15 @@ func (c *Client) WritePump() {
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// Hub closed the channel
+				log.Printf("[INFO] Hub closed send channel for room %s", c.roomCode)
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
+			log.Printf("[DEBUG] Writing message to client in room %s: %s", c.roomCode, string(message))
 			w, err := c.conn.NextWriter(websocket.TextMessage)
 			if err != nil {
+				log.Printf("[ERROR] Failed to get writer for room %s: %v", c.roomCode, err)
 				return
 			}
 			w.Write(message)
@@ -108,14 +125,18 @@ func (c *Client) WritePump() {
 			}
 
 			if err := w.Close(); err != nil {
+				log.Printf("[ERROR] Failed to close writer for room %s: %v", c.roomCode, err)
 				return
 			}
+			log.Printf("[DEBUG] Successfully sent message to client in room %s", c.roomCode)
 
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Printf("[ERROR] Failed to send ping for room %s: %v", c.roomCode, err)
 				return
 			}
+			log.Printf("[DEBUG] Sent ping to client in room %s", c.roomCode)
 		}
 	}
 }

@@ -14,9 +14,14 @@ export function useWebSocket(roomCode: string) {
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeout = useRef<number | undefined>(undefined);
   const intentionalClose = useRef(false);
+  const isConnectedRef = useRef(false);
 
   const connect = useCallback(() => {
-    if (!roomCode) return;
+    // Don't connect if roomCode is empty or invalid
+    if (!roomCode || roomCode.length < 6) {
+      console.log('WebSocket: Skipping connection (invalid room code)');
+      return;
+    }
 
     // Don't reconnect if max attempts reached
     if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
@@ -29,6 +34,7 @@ export function useWebSocket(roomCode: string) {
 
       ws.current.onopen = () => {
         console.log('WebSocket connected');
+        isConnectedRef.current = true;
         setIsConnected(true);
         setConnectionError(null);
         setReconnectAttempts(0); // Reset reconnect counter on successful connection
@@ -36,16 +42,37 @@ export function useWebSocket(roomCode: string) {
 
       ws.current.onmessage = (event) => {
         try {
-          const message: WSMessage = JSON.parse(event.data);
-          setLastMessage(message);
+          // Handle multiple newline-separated JSON messages in one frame
+          const data = event.data.toString().trim();
+          const messages = data.split('\n').filter(line => line.trim());
+
+          // Fallback: If we receive a message but onopen didn't fire, mark as connected
+          if (!isConnectedRef.current && messages.length > 0) {
+            console.log('WebSocket connected (via message fallback)');
+            isConnectedRef.current = true;
+            setIsConnected(true);
+            setConnectionError(null);
+            setReconnectAttempts(0);
+          }
+
+          // Process each message
+          for (const msgData of messages) {
+            try {
+              const message: WSMessage = JSON.parse(msgData);
+              setLastMessage(message);
+            } catch (parseError) {
+              console.error('Failed to parse individual WebSocket message:', msgData, parseError);
+            }
+          }
         } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
+          console.error('Failed to process WebSocket message:', error);
           setConnectionError('메시지 처리 중 오류가 발생했습니다.');
         }
       };
 
       ws.current.onclose = (event) => {
         console.log('WebSocket disconnected', event.code, event.reason);
+        isConnectedRef.current = false;
         setIsConnected(false);
 
         // Don't reconnect if it was an intentional close or server rejected connection

@@ -4,6 +4,7 @@ import './App.css';
 import { HomePage } from './pages/HomePage';
 import { LobbyPage } from './pages/LobbyPage';
 import { GamePage } from './pages/GamePage';
+import { RevealPage } from './pages/RevealPage';
 
 // T107: Browser compatibility check component
 function BrowserCompatibilityCheck({ children }: { children: React.ReactNode }) {
@@ -51,6 +52,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/lobby/:roomCode" element={<LobbyPage />} />
           <Route path="/game/:roomCode" element={<GamePage />} />
+          <Route path="/reveal/:roomCode" element={<RevealPage />} />
         </Routes>
       </Router>
     </BrowserCompatibilityCheck>

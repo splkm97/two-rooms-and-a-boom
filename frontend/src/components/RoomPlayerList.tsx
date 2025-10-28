@@ -9,19 +9,20 @@ interface RoomPlayerListProps {
 // T083: Create RoomPlayerList component showing same-room players
 export function RoomPlayerList({ players, roomColor, currentPlayerId }: RoomPlayerListProps) {
   const roomName = roomColor === 'RED_ROOM' ? '빨간 방' : '파란 방';
-  const roomBgColor = roomColor === 'RED_ROOM' ? '#fee2e2' : '#dbeafe';
-  const roomBorderColor = roomColor === 'RED_ROOM' ? '#ef4444' : '#3b82f6';
+  const roomBgColor = roomColor === 'RED_ROOM' ? '#fecaca' : '#bfdbfe';
+  const roomBorderColor = roomColor === 'RED_ROOM' ? '#dc2626' : '#2563eb';
+  const roomTextColor = roomColor === 'RED_ROOM' ? '#991b1b' : '#1e40af';
 
   return (
     <div
       style={{
-        border: `2px solid ${roomBorderColor}`,
+        border: `3px solid ${roomBorderColor}`,
         borderRadius: '8px',
-        padding: '1rem',
+        padding: '1.25rem',
         backgroundColor: roomBgColor,
       }}
     >
-      <h3 style={{ margin: '0 0 1rem 0' }}>
+      <h3 style={{ margin: '0 0 1rem 0', color: roomTextColor, fontSize: '1.3rem' }}>
         {roomName} ({players.length}명)
       </h3>
 
@@ -30,29 +31,36 @@ export function RoomPlayerList({ players, roomColor, currentPlayerId }: RoomPlay
           <li
             key={player.id}
             style={{
-              padding: '0.5rem',
+              padding: '0.75rem',
               marginBottom: '0.5rem',
               backgroundColor: '#fff',
-              borderRadius: '4px',
+              borderRadius: '6px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              border: player.id === currentPlayerId ? `2px solid ${roomBorderColor}` : '1px solid #e5e7eb',
             }}
           >
-            <span>
+            <span style={{
+              fontSize: '1.1rem',
+              fontWeight: player.id === currentPlayerId ? 'bold' : '500',
+              color: '#1f2937'
+            }}>
               {player.nickname}
               {player.id === currentPlayerId && (
-                <span style={{ marginLeft: '0.5rem', color: '#666' }}>(나)</span>
+                <span style={{ marginLeft: '0.5rem', color: roomTextColor, fontWeight: 'bold' }}>(나)</span>
               )}
             </span>
             {player.isOwner && (
               <span
                 style={{
                   padding: '0.25rem 0.5rem',
-                  backgroundColor: '#fbbf24',
+                  backgroundColor: '#fde047',
+                  border: '1px solid #ca8a04',
                   borderRadius: '4px',
                   fontSize: '0.875rem',
                   fontWeight: 'bold',
+                  color: '#713f12',
                 }}
               >
                 방장

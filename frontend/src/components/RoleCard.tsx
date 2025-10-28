@@ -8,8 +8,13 @@ interface RoleCardProps {
 
 // T082: Create RoleCard component showing player's role and team
 export function RoleCard({ role, team, currentRoom }: RoleCardProps) {
-  const teamColor = team === 'RED' ? '#ef4444' : '#3b82f6';
+  // 스파이는 반대 팀 색상을 사용 (적 팀에 잠입했으므로)
+  const displayTeam = role.isSpy ? (team === 'RED' ? 'BLUE' : 'RED') : team;
+  const teamColor = displayTeam === 'RED' ? '#dc2626' : '#2563eb';
+  const teamBgColor = displayTeam === 'RED' ? '#fee2e2' : '#dbeafe';
   const roomName = currentRoom === 'RED_ROOM' ? '빨간 방' : '파란 방';
+  const roomColor = currentRoom === 'RED_ROOM' ? '#dc2626' : '#2563eb';
+  const roomBgColor = currentRoom === 'RED_ROOM' ? '#fecaca' : '#bfdbfe';
 
   return (
     <div
@@ -28,7 +33,12 @@ export function RoleCard({ role, team, currentRoom }: RoleCardProps) {
       <div style={{ marginBottom: '1rem' }}>
         <h3 style={{ margin: 0, fontSize: '1.5rem' }}>{role.name}</h3>
         <p style={{ color: teamColor, fontWeight: 'bold', margin: '0.5rem 0' }}>
-          {team === 'RED' ? '레드 팀' : '블루 팀'}
+          {displayTeam === 'RED' ? '레드 팀' : '블루 팀'}
+          {role.isSpy && (
+            <span style={{ fontSize: '0.9rem', color: '#666', marginLeft: '0.5rem' }}>
+              (실제: {team === 'RED' ? '레드 팀' : '블루 팀'})
+            </span>
+          )}
         </p>
       </div>
 
@@ -39,11 +49,12 @@ export function RoleCard({ role, team, currentRoom }: RoleCardProps) {
       <div
         style={{
           padding: '0.75rem',
-          backgroundColor: '#f3f4f6',
+          backgroundColor: roomBgColor,
           borderRadius: '4px',
+          border: `2px solid ${roomColor}`,
         }}
       >
-        <p style={{ margin: 0, fontWeight: 'bold' }}>
+        <p style={{ margin: 0, fontWeight: 'bold', color: roomColor, fontSize: '1.1rem' }}>
           현재 위치: {roomName}
         </p>
       </div>
@@ -52,13 +63,14 @@ export function RoleCard({ role, team, currentRoom }: RoleCardProps) {
         <div
           style={{
             marginTop: '1rem',
-            padding: '0.5rem',
-            backgroundColor: '#fef3c7',
+            padding: '0.75rem',
+            backgroundColor: '#fde047',
             borderRadius: '4px',
             textAlign: 'center',
+            border: '2px solid #ca8a04',
           }}
         >
-          <span style={{ fontWeight: 'bold', color: '#92400e' }}>
+          <span style={{ fontWeight: 'bold', color: '#713f12', fontSize: '1.1rem' }}>
             👑 리더
           </span>
         </div>
@@ -68,13 +80,14 @@ export function RoleCard({ role, team, currentRoom }: RoleCardProps) {
         <div
           style={{
             marginTop: '1rem',
-            padding: '0.5rem',
-            backgroundColor: '#ddd6fe',
+            padding: '0.75rem',
+            backgroundColor: '#c4b5fd',
             borderRadius: '4px',
             textAlign: 'center',
+            border: '2px solid #7c3aed',
           }}
         >
-          <span style={{ fontWeight: 'bold', color: '#5b21b6' }}>
+          <span style={{ fontWeight: 'bold', color: '#4c1d95', fontSize: '1.1rem' }}>
             🕵️ 스파이
           </span>
         </div>
