@@ -11,6 +11,14 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Color variables for dark mode */
+  --text-primary: rgba(255, 255, 255, 0.87);
+  --text-secondary: rgba(255, 255, 255, 0.6);
+  --bg-primary: #242424;
+  --bg-secondary: #1a1a1a;
+  --bg-card: #2d2d2d;
+  --border-color: #404040;
 }
 
 a {
@@ -58,6 +66,14 @@ button:focus-visible {
   :root {
     color: #213547;
     background-color: #ffffff;
+
+    /* Color variables for light mode */
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f5;
+    --bg-card: #ffffff;
+    --border-color: #ddd;
   }
   a:hover {
     color: #747bff;

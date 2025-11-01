@@ -10,17 +10,18 @@ export function PlayerList({ players, currentPlayerId }: PlayerListProps) {
   return (
     <div
       style={{
-        border: '1px solid #ddd',
+        border: '1px solid var(--border-color)',
         borderRadius: '8px',
         padding: '1rem',
+        backgroundColor: 'var(--bg-card)',
       }}
     >
-      <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>
+      <h3 style={{ marginTop: 0, marginBottom: '1rem', color: 'var(--text-primary)' }}>
         플레이어 목록 ({players.length}명)
       </h3>
 
       {players.length === 0 ? (
-        <p style={{ color: '#999', textAlign: 'center' }}>
+        <p style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>
           아직 플레이어가 없습니다
         </p>
       ) : (
@@ -32,7 +33,7 @@ export function PlayerList({ players, currentPlayerId }: PlayerListProps) {
                 padding: '0.75rem',
                 marginBottom: '0.5rem',
                 backgroundColor:
-                  player.id === currentPlayerId ? '#e3f2fd' : '#f5f5f5',
+                  player.id === currentPlayerId ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-secondary)',
                 borderRadius: '4px',
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -43,6 +44,8 @@ export function PlayerList({ players, currentPlayerId }: PlayerListProps) {
                 <span
                   style={{
                     fontWeight: player.id === currentPlayerId ? 'bold' : 'normal',
+                    color: 'var(--text-primary)',
+                    fontSize: '1rem',
                   }}
                 >
                   {player.nickname}
@@ -53,7 +56,7 @@ export function PlayerList({ players, currentPlayerId }: PlayerListProps) {
                     style={{
                       marginLeft: '0.5rem',
                       fontSize: '0.8rem',
-                      color: '#999',
+                      color: 'var(--text-secondary)',
                     }}
                   >
                     (익명)

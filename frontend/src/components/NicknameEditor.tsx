@@ -42,17 +42,18 @@ export function NicknameEditor({ currentNickname, onUpdate }: NicknameEditorProp
     return (
       <div
         style={{
-          border: '1px solid #ddd',
+          border: '1px solid var(--border-color)',
           borderRadius: '8px',
           padding: '1rem',
+          backgroundColor: 'var(--bg-card)',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <label style={{ fontSize: '0.9rem', color: '#666', display: 'block', marginBottom: '0.25rem' }}>
+            <label style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>
               내 닉네임
             </label>
-            <span style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>
+            <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>
               {currentNickname}
             </span>
           </div>
@@ -77,12 +78,13 @@ export function NicknameEditor({ currentNickname, onUpdate }: NicknameEditorProp
   return (
     <div
       style={{
-        border: '1px solid #ddd',
+        border: '1px solid var(--border-color)',
         borderRadius: '8px',
         padding: '1rem',
+        backgroundColor: 'var(--bg-card)',
       }}
     >
-      <label style={{ fontSize: '0.9rem', color: '#666', display: 'block', marginBottom: '0.5rem' }}>
+      <label style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.5rem' }}>
         새 닉네임 입력
       </label>
 
@@ -97,8 +99,10 @@ export function NicknameEditor({ currentNickname, onUpdate }: NicknameEditorProp
             flex: 1,
             padding: '0.5rem',
             fontSize: '1rem',
-            border: '1px solid #ddd',
+            border: '1px solid var(--border-color)',
             borderRadius: '4px',
+            color: 'var(--text-primary)',
+            backgroundColor: 'var(--bg-primary)',
           }}
           autoFocus
         />
@@ -134,12 +138,12 @@ export function NicknameEditor({ currentNickname, onUpdate }: NicknameEditorProp
       </div>
 
       {error && (
-        <div style={{ fontSize: '0.9rem', color: '#c00' }}>
+        <div style={{ fontSize: '0.9rem', color: '#dc2626' }}>
           {error}
         </div>
       )}
 
-      <div style={{ fontSize: '0.8rem', color: '#999', marginTop: '0.5rem' }}>
+      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
         {nickname.length}/20자
       </div>
     </div>

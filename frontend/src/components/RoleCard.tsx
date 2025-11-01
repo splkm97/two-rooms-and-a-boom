@@ -31,11 +31,11 @@ export function RoleCard({ role, team, currentRoom }: RoleCardProps) {
       </div>
 
       <div style={{ marginBottom: '1rem' }}>
-        <h3 style={{ margin: 0, fontSize: '1.5rem' }}>{role.name}</h3>
+        <h3 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--text-primary)' }}>{role.name}</h3>
         <p style={{ color: teamColor, fontWeight: 'bold', margin: '0.5rem 0' }}>
           {displayTeam === 'RED' ? '레드 팀' : '블루 팀'}
           {role.isSpy && (
-            <span style={{ fontSize: '0.9rem', color: '#666', marginLeft: '0.5rem' }}>
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>
               (실제: {team === 'RED' ? '레드 팀' : '블루 팀'})
             </span>
           )}
@@ -43,7 +43,7 @@ export function RoleCard({ role, team, currentRoom }: RoleCardProps) {
       </div>
 
       <div style={{ marginBottom: '1rem' }}>
-        <p style={{ margin: 0, color: '#666' }}>{role.description}</p>
+        <p style={{ margin: 0, color: 'var(--text-secondary)' }}>{role.description}</p>
       </div>
 
       <div
