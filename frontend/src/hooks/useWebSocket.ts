@@ -5,7 +5,7 @@ const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8080';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_INTERVAL = 3000; // 3 seconds
 
-export function useWebSocket(roomCode: string) {
+export function useWebSocket(roomCode: string, playerId?: string) {
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -23,6 +23,12 @@ export function useWebSocket(roomCode: string) {
       return;
     }
 
+    // Don't connect if playerId is not available yet
+    if (!playerId) {
+      console.log('WebSocket: Skipping connection (waiting for playerId)');
+      return;
+    }
+
     // Don't reconnect if max attempts reached
     if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
       setConnectionError('연결을 재시도할 수 없습니다. 페이지를 새로고침해주세요.');
@@ -30,7 +36,10 @@ export function useWebSocket(roomCode: string) {
     }
 
     try {
-      ws.current = new WebSocket(`${WS_BASE_URL}/ws/${roomCode}`);
+      const wsUrl = playerId
+        ? `${WS_BASE_URL}/ws/${roomCode}?playerId=${playerId}`
+        : `${WS_BASE_URL}/ws/${roomCode}`;
+      ws.current = new WebSocket(wsUrl);
 
       ws.current.onopen = () => {
         console.log('WebSocket connected');
@@ -108,7 +117,7 @@ export function useWebSocket(roomCode: string) {
       console.error('Failed to connect WebSocket:', error);
       setConnectionError('WebSocket 연결에 실패했습니다.');
     }
-  }, [roomCode, reconnectAttempts]);
+  }, [roomCode, playerId, reconnectAttempts]);
 
   useEffect(() => {
     intentionalClose.current = false;

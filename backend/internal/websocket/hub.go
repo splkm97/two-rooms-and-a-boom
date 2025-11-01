@@ -57,10 +57,29 @@ func (h *Hub) Run() {
 				if clients[client] {
 					delete(clients, client)
 					close(client.send)
-					
+
 					// Mark as disconnected with timestamp
 					h.disconnected[client.playerID] = time.Now()
-					
+
+					// Broadcast PLAYER_DISCONNECTED event
+					if client.playerID != "" {
+						payload := &PlayerDisconnectedPayload{
+							PlayerID: client.playerID,
+						}
+						msg, err := NewMessage(MessagePlayerDisconnected, payload)
+						if err == nil {
+							data, _ := msg.Marshal()
+							// Broadcast to remaining clients in the room
+							for otherClient := range clients {
+								select {
+								case otherClient.send <- data:
+								default:
+									// Client buffer full, skip
+								}
+							}
+						}
+					}
+
 					// Clean up empty rooms
 					if len(clients) == 0 {
 						delete(h.rooms, client.roomCode)
