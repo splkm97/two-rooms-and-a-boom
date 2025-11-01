@@ -167,10 +167,10 @@ export function GamePage() {
   if (!role || !team || !currentRoom) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <h2>게임을 로딩 중입니다...</h2>
-        <p>역할 배정을 기다리고 있습니다.</p>
+        <h2 style={{ color: 'var(--text-primary)' }}>게임을 로딩 중입니다...</h2>
+        <p style={{ color: 'var(--text-secondary)' }}>역할 배정을 기다리고 있습니다.</p>
         <div style={{ marginTop: '1rem' }}>
-          <p style={{ color: isConnected ? '#10b981' : '#ef4444' }}>
+          <p style={{ color: isConnected ? '#10b981' : '#ef4444', fontWeight: 'bold' }}>
             {isConnected ? '✓ 연결됨' : '✗ 연결 끊김'}
           </p>
         </div>
@@ -184,8 +184,8 @@ export function GamePage() {
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ margin: 0 }}>게임 진행 중</h1>
-        <p style={{ color: '#666' }}>방 코드: {roomCode}</p>
+        <h1 style={{ margin: 0, color: 'var(--text-primary)' }}>게임 진행 중</h1>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>방 코드: <strong>{roomCode}</strong></p>
       </div>
 
       <div
