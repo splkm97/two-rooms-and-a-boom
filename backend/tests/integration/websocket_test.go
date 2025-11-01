@@ -26,7 +26,7 @@ func setupWebSocketTestServer() (*httptest.Server, *store.RoomStore, *ws.Hub) {
 	go hub.Run()
 
 	roomService := services.NewRoomService(roomStore)
-	playerService := services.NewPlayerService(roomStore)
+	playerService := services.NewPlayerService(roomStore, hub)
 
 	wsHandler := handlers.NewWebSocketHandler(hub, roomService, playerService)
 

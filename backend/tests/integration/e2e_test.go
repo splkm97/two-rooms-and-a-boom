@@ -28,7 +28,7 @@ func TestE2E_CompleteGameFlow(t *testing.T) {
 
 	// Initialize services
 	roomService := services.NewRoomService(roomStore)
-	playerService := services.NewPlayerService(roomStore)
+	playerService := services.NewPlayerService(roomStore, hub)
 	gameService := services.NewGameService(roomStore)
 	gameService.SetHub(hub)
 

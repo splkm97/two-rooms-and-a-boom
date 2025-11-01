@@ -35,7 +35,7 @@ func TestE2E_UserStory1_CompleteFlow(t *testing.T) {
 
 	// Initialize services
 	roomService := services.NewRoomService(roomStore)
-	playerService := services.NewPlayerService(roomStore)
+	playerService := services.NewPlayerService(roomStore, hub)
 
 	// Initialize handlers
 	roomHandler := handlers.NewRoomHandler(roomService)
@@ -372,7 +372,7 @@ func TestE2E_UserStory1_WebSocketRealTime(t *testing.T) {
 	go hub.Run()
 
 	roomService := services.NewRoomService(roomStore)
-	playerService := services.NewPlayerService(roomStore)
+	playerService := services.NewPlayerService(roomStore, hub)
 
 	roomHandler := handlers.NewRoomHandler(roomService)
 	playerHandler := handlers.NewPlayerHandler(playerService)
@@ -450,7 +450,7 @@ func TestE2E_UserStory1_RoomCapacity(t *testing.T) {
 	go hub.Run()
 
 	roomService := services.NewRoomService(roomStore)
-	playerService := services.NewPlayerService(roomStore)
+	playerService := services.NewPlayerService(roomStore, hub)
 
 	roomHandler := handlers.NewRoomHandler(roomService)
 	playerHandler := handlers.NewPlayerHandler(playerService)

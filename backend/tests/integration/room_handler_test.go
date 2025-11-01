@@ -21,7 +21,7 @@ func setupTestRouter() (*gin.Engine, *store.RoomStore) {
 	roomStore := store.NewRoomStore()
 
 	roomService := services.NewRoomService(roomStore)
-	playerService := services.NewPlayerService(roomStore)
+	playerService := services.NewPlayerService(roomStore, nil)
 
 	roomHandler := handlers.NewRoomHandler(roomService)
 	playerHandler := handlers.NewPlayerHandler(playerService)
