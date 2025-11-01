@@ -8,7 +8,7 @@ import { PlayerList } from '../components/PlayerList';
 import { NicknameEditor } from '../components/NicknameEditor';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { getRoom, joinRoom, updateNickname, startGame, APIError } from '../services/api';
+import { getRoom, joinRoom, updateNickname, startGame, leaveRoom, APIError } from '../services/api';
 import type { Player, Room } from '../types/game.types';
 
 export function LobbyPage() {
@@ -21,7 +21,11 @@ export function LobbyPage() {
   const [error, setError] = useState('');
   const [isStarting, setIsStarting] = useState(false);
 
-  const { isConnected, lastMessage } = useWebSocket(roomCode || '');
+  // Only connect WebSocket after we have player info
+  const { isConnected, lastMessage } = useWebSocket(
+    roomCode || '',
+    currentPlayer?.id || undefined
+  );
 
   // Ref to track if we're already joining to prevent React Strict Mode double execution
   const isJoiningRef = useRef(false);
@@ -193,8 +197,24 @@ export function LobbyPage() {
     setCurrentPlayer(updatedPlayer);
   };
 
-  const handleBackToHome = () => {
+  const handleBackToHome = async () => {
+    // Immediately navigate to prevent any WebSocket message handling
+    // The cleanup will happen automatically when component unmounts
+    const currentRoomCode = roomCode;
+    const currentPlayerId = currentPlayer?.id;
+
+    // Navigate first to prevent WebSocket message interference
     navigate('/');
+
+    // Call leave room API after navigation (fire and forget)
+    if (currentRoomCode && currentPlayerId) {
+      try {
+        await leaveRoom(currentRoomCode, currentPlayerId);
+      } catch (err) {
+        console.error('Failed to leave room:', err);
+        // Ignore errors since we've already navigated away
+      }
+    }
   };
 
   // T084: Add "게임 시작" button handler (visible only to room owner)

@@ -102,3 +102,35 @@ func (h *PlayerHandler) UpdateNickname(c *gin.Context) {
 
 	c.JSON(http.StatusOK, player)
 }
+
+// LeaveRoom handles player leaving the room
+func (h *PlayerHandler) LeaveRoom(c *gin.Context) {
+	roomCode := c.Param("roomCode")
+	playerID := c.Param("playerId")
+
+	err := h.playerService.LeaveRoom(roomCode, playerID)
+	if err != nil {
+		switch err {
+		case models.ErrRoomNotFound:
+			c.JSON(http.StatusNotFound, gin.H{
+				"code":    "ROOM_NOT_FOUND",
+				"message": "Room not found",
+			})
+		case models.ErrPlayerNotFound:
+			c.JSON(http.StatusNotFound, gin.H{
+				"code":    "PLAYER_NOT_FOUND",
+				"message": "Player not found",
+			})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    "LEAVE_ROOM_FAILED",
+				"message": err.Error(),
+			})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Player left successfully",
+	})
+}

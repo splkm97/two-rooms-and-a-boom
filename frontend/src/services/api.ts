@@ -124,6 +124,11 @@ export async function updateNickname(
   );
 }
 
+// Leave room API function
+export async function leaveRoom(roomCode: string, playerId: string): Promise<{ message: string }> {
+  return api.delete<{ message: string }>(`/api/v1/rooms/${roomCode}/players/${playerId}`);
+}
+
 // T080: Implement startGame API function
 export interface StartGameResponse extends CreateRoomResponse {
   gameSession: {

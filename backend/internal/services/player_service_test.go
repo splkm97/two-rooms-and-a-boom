@@ -11,7 +11,7 @@ import (
 func TestPlayerService_JoinRoom(t *testing.T) {
 	t.Run("first player joins as owner", func(t *testing.T) {
 		roomStore := store.NewRoomStore()
-		playerService := NewPlayerService(roomStore)
+		playerService := NewPlayerService(roomStore, nil)
 
 		// Create room
 		room := &models.Room{
@@ -78,7 +78,7 @@ func TestPlayerService_JoinRoom(t *testing.T) {
 
 	t.Run("second player joins without owner status", func(t *testing.T) {
 		roomStore := store.NewRoomStore()
-		playerService := NewPlayerService(roomStore)
+		playerService := NewPlayerService(roomStore, nil)
 
 		// Create room with existing player
 		room := &models.Room{
@@ -122,7 +122,7 @@ func TestPlayerService_JoinRoom(t *testing.T) {
 
 	t.Run("rejects join when room is full", func(t *testing.T) {
 		roomStore := store.NewRoomStore()
-		playerService := NewPlayerService(roomStore)
+		playerService := NewPlayerService(roomStore, nil)
 
 		// Create full room (6 players, max 6)
 		room := &models.Room{
@@ -157,7 +157,7 @@ func TestPlayerService_JoinRoom(t *testing.T) {
 
 	t.Run("rejects join when game already started", func(t *testing.T) {
 		roomStore := store.NewRoomStore()
-		playerService := NewPlayerService(roomStore)
+		playerService := NewPlayerService(roomStore, nil)
 
 		// Create room with IN_PROGRESS status
 		room := &models.Room{
@@ -182,7 +182,7 @@ func TestPlayerService_JoinRoom(t *testing.T) {
 
 	t.Run("returns error for non-existent room", func(t *testing.T) {
 		roomStore := store.NewRoomStore()
-		playerService := NewPlayerService(roomStore)
+		playerService := NewPlayerService(roomStore, nil)
 
 		// Try to join non-existent room
 		_, err := playerService.JoinRoom("NONEXIST")
@@ -198,7 +198,7 @@ func TestPlayerService_JoinRoom(t *testing.T) {
 
 	t.Run("generates sequential anonymous nicknames", func(t *testing.T) {
 		roomStore := store.NewRoomStore()
-		playerService := NewPlayerService(roomStore)
+		playerService := NewPlayerService(roomStore, nil)
 
 		// Create room
 		room := &models.Room{
@@ -230,7 +230,7 @@ func TestPlayerService_JoinRoom(t *testing.T) {
 func TestPlayerService_UpdateNickname(t *testing.T) {
 	t.Run("successfully update nickname", func(t *testing.T) {
 		roomStore := store.NewRoomStore()
-		playerService := NewPlayerService(roomStore)
+		playerService := NewPlayerService(roomStore, nil)
 
 		// Create room with player
 		room := &models.Room{
@@ -270,7 +270,7 @@ func TestPlayerService_UpdateNickname(t *testing.T) {
 
 	t.Run("handle duplicate nickname by adding suffix", func(t *testing.T) {
 		roomStore := store.NewRoomStore()
-		playerService := NewPlayerService(roomStore)
+		playerService := NewPlayerService(roomStore, nil)
 
 		// Create room with two players
 		room := &models.Room{
@@ -316,7 +316,7 @@ func TestPlayerService_UpdateNickname(t *testing.T) {
 
 	t.Run("reject nickname shorter than 2 characters", func(t *testing.T) {
 		roomStore := store.NewRoomStore()
-		playerService := NewPlayerService(roomStore)
+		playerService := NewPlayerService(roomStore, nil)
 
 		// Create room with player
 		room := &models.Room{
@@ -350,7 +350,7 @@ func TestPlayerService_UpdateNickname(t *testing.T) {
 
 	t.Run("reject nickname longer than 20 characters", func(t *testing.T) {
 		roomStore := store.NewRoomStore()
-		playerService := NewPlayerService(roomStore)
+		playerService := NewPlayerService(roomStore, nil)
 
 		// Create room with player
 		room := &models.Room{
@@ -384,7 +384,7 @@ func TestPlayerService_UpdateNickname(t *testing.T) {
 
 	t.Run("return error for non-existent player", func(t *testing.T) {
 		roomStore := store.NewRoomStore()
-		playerService := NewPlayerService(roomStore)
+		playerService := NewPlayerService(roomStore, nil)
 
 		// Create room without players
 		room := &models.Room{
@@ -409,7 +409,7 @@ func TestPlayerService_UpdateNickname(t *testing.T) {
 
 	t.Run("return error for non-existent room", func(t *testing.T) {
 		roomStore := store.NewRoomStore()
-		playerService := NewPlayerService(roomStore)
+		playerService := NewPlayerService(roomStore, nil)
 
 		// Try to update player in non-existent room
 		_, err := playerService.UpdateNickname("NONEXIST", "player1", "닉네임")
@@ -425,7 +425,7 @@ func TestPlayerService_UpdateNickname(t *testing.T) {
 
 	t.Run("preserve other player fields when updating nickname", func(t *testing.T) {
 		roomStore := store.NewRoomStore()
-		playerService := NewPlayerService(roomStore)
+		playerService := NewPlayerService(roomStore, nil)
 
 		// Create room with player
 		room := &models.Room{
@@ -461,6 +461,199 @@ func TestPlayerService_UpdateNickname(t *testing.T) {
 		}
 		if updatedPlayer.RoomCode != room.Code {
 			t.Error("Expected roomCode to be preserved")
+		}
+	})
+}
+
+// Test for PlayerService.LeaveRoom
+func TestPlayerService_LeaveRoom(t *testing.T) {
+	t.Run("successfully leave room as non-owner", func(t *testing.T) {
+		roomStore := store.NewRoomStore()
+		playerService := NewPlayerService(roomStore, nil)
+
+		// Create room with two players
+		room := &models.Room{
+			Code:       GenerateRoomCode(),
+			Status:     models.RoomStatusWaiting,
+			Players:    []*models.Player{
+				{
+					ID:          "player1",
+					Nickname:    "플레이어1",
+					IsAnonymous: true,
+					IsOwner:     true,
+					RoomCode:    "",
+				},
+				{
+					ID:          "player2",
+					Nickname:    "플레이어2",
+					IsAnonymous: true,
+					IsOwner:     false,
+					RoomCode:    "",
+				},
+			},
+			MaxPlayers: 10,
+		}
+		room.Players[0].RoomCode = room.Code
+		room.Players[1].RoomCode = room.Code
+		roomStore.Create(room)
+
+		// Leave room
+		err := playerService.LeaveRoom(room.Code, "player2")
+
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		// Verify player is removed
+		updatedRoom, _ := roomStore.Get(room.Code)
+		if len(updatedRoom.Players) != 1 {
+			t.Errorf("Expected 1 player remaining, got %d", len(updatedRoom.Players))
+		}
+
+		// Verify owner is still player1
+		if updatedRoom.Players[0].ID != "player1" {
+			t.Error("Expected player1 to still be owner")
+		}
+		if !updatedRoom.Players[0].IsOwner {
+			t.Error("Expected player1 to remain owner")
+		}
+	})
+
+	t.Run("transfer ownership when owner leaves", func(t *testing.T) {
+		roomStore := store.NewRoomStore()
+		playerService := NewPlayerService(roomStore, nil)
+
+		// Create room with two players
+		room := &models.Room{
+			Code:       GenerateRoomCode(),
+			Status:     models.RoomStatusWaiting,
+			Players:    []*models.Player{
+				{
+					ID:          "player1",
+					Nickname:    "플레이어1",
+					IsAnonymous: true,
+					IsOwner:     true,
+					RoomCode:    "",
+				},
+				{
+					ID:          "player2",
+					Nickname:    "플레이어2",
+					IsAnonymous: true,
+					IsOwner:     false,
+					RoomCode:    "",
+				},
+			},
+			MaxPlayers: 10,
+		}
+		room.Players[0].RoomCode = room.Code
+		room.Players[1].RoomCode = room.Code
+		roomStore.Create(room)
+
+		// Owner leaves room
+		err := playerService.LeaveRoom(room.Code, "player1")
+
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		// Verify player1 is removed
+		updatedRoom, _ := roomStore.Get(room.Code)
+		if len(updatedRoom.Players) != 1 {
+			t.Errorf("Expected 1 player remaining, got %d", len(updatedRoom.Players))
+		}
+
+		// Verify ownership transferred to player2
+		if updatedRoom.Players[0].ID != "player2" {
+			t.Error("Expected player2 to be the remaining player")
+		}
+		if !updatedRoom.Players[0].IsOwner {
+			t.Error("Expected ownership to transfer to player2")
+		}
+	})
+
+	t.Run("last player leaves empty room", func(t *testing.T) {
+		roomStore := store.NewRoomStore()
+		playerService := NewPlayerService(roomStore, nil)
+
+		// Create room with one player
+		room := &models.Room{
+			Code:       GenerateRoomCode(),
+			Status:     models.RoomStatusWaiting,
+			Players:    []*models.Player{
+				{
+					ID:          "player1",
+					Nickname:    "플레이어1",
+					IsAnonymous: true,
+					IsOwner:     true,
+					RoomCode:    "",
+				},
+			},
+			MaxPlayers: 10,
+		}
+		room.Players[0].RoomCode = room.Code
+		roomStore.Create(room)
+
+		// Last player leaves
+		err := playerService.LeaveRoom(room.Code, "player1")
+
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		// Verify room is empty
+		updatedRoom, _ := roomStore.Get(room.Code)
+		if len(updatedRoom.Players) != 0 {
+			t.Errorf("Expected 0 players, got %d", len(updatedRoom.Players))
+		}
+	})
+
+	t.Run("return error for non-existent player", func(t *testing.T) {
+		roomStore := store.NewRoomStore()
+		playerService := NewPlayerService(roomStore, nil)
+
+		// Create room with player
+		room := &models.Room{
+			Code:       GenerateRoomCode(),
+			Status:     models.RoomStatusWaiting,
+			Players:    []*models.Player{
+				{
+					ID:          "player1",
+					Nickname:    "플레이어1",
+					IsAnonymous: true,
+					IsOwner:     true,
+					RoomCode:    "",
+				},
+			},
+			MaxPlayers: 10,
+		}
+		room.Players[0].RoomCode = room.Code
+		roomStore.Create(room)
+
+		// Try to remove non-existent player
+		err := playerService.LeaveRoom(room.Code, "NONEXIST")
+
+		if err == nil {
+			t.Fatal("Expected error for non-existent player, got nil")
+		}
+
+		if err != models.ErrPlayerNotFound {
+			t.Errorf("Expected ErrPlayerNotFound, got %v", err)
+		}
+	})
+
+	t.Run("return error for non-existent room", func(t *testing.T) {
+		roomStore := store.NewRoomStore()
+		playerService := NewPlayerService(roomStore, nil)
+
+		// Try to leave non-existent room
+		err := playerService.LeaveRoom("NONEXIST", "player1")
+
+		if err == nil {
+			t.Fatal("Expected error for non-existent room, got nil")
+		}
+
+		if err != models.ErrRoomNotFound {
+			t.Errorf("Expected ErrRoomNotFound, got %v", err)
 		}
 	})
 }
