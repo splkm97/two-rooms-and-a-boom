@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"github.com/kalee/two-rooms-and-a-boom/internal/handlers"
 	"github.com/kalee/two-rooms-and-a-boom/internal/services"
 	"github.com/kalee/two-rooms-and-a-boom/internal/store"
@@ -17,11 +19,37 @@ import (
 )
 
 func main() {
+	// Load .env file if it exists (optional in production)
+	if err := godotenv.Load(); err != nil {
+		log.Println("[INFO] No .env file found, using environment variables")
+	}
+
+	// Get configuration from environment variables
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:5173"
+	}
+
+	ginMode := os.Getenv("GIN_MODE")
+	if ginMode == "" {
+		ginMode = "debug"
+	}
+	gin.SetMode(ginMode)
+
 	r := gin.Default()
 
-	// CORS middleware for development
+	// CORS middleware - use environment variable for frontend URL
 	r.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		// Allow requests from configured frontend URL or all origins in development
+		origin := c.GetHeader("Origin")
+		if origin == frontendURL || ginMode == "debug" {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		}
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
@@ -43,7 +71,7 @@ func main() {
 
 	// Initialize services
 	roomService := services.NewRoomService(roomStore)
-	playerService := services.NewPlayerService(roomStore)
+	playerService := services.NewPlayerService(roomStore, hub)
 	gameService := services.NewGameService(roomStore)
 	gameService.SetHub(hub)
 
@@ -72,6 +100,7 @@ func main() {
 		// Player routes
 		v1.POST("/rooms/:roomCode/players", playerHandler.JoinRoom)
 		v1.PATCH("/rooms/:roomCode/players/:playerId/nickname", playerHandler.UpdateNickname)
+		v1.DELETE("/rooms/:roomCode/players/:playerId", playerHandler.LeaveRoom)
 
 		// Game routes (US2, US3)
 		v1.POST("/rooms/:roomCode/game/start", gameHandler.StartGame)
@@ -82,14 +111,16 @@ func main() {
 	r.GET("/ws/:roomCode", wsHandler.HandleWebSocket)
 
 	// T104: Implement graceful shutdown
+	serverAddr := fmt.Sprintf(":%s", port)
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    serverAddr,
 		Handler: r,
 	}
 
 	// Start server in a goroutine
 	go func() {
-		log.Println("[INFO] Server starting on :8080")
+		log.Printf("[INFO] Server starting on %s", serverAddr)
+		log.Printf("[INFO] Frontend URL: %s", frontendURL)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("[FATAL] Server failed to start: %v", err)
 		}

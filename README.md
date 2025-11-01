@@ -53,13 +53,19 @@
 git clone https://github.com/[username]/two-rooms-and-a-boom.git
 cd two-rooms-and-a-boom
 
-# 2. 백엔드 서버 실행
+# 2. 환경 변수 설정
+# 백엔드 환경 변수
+cp backend/.env.example backend/.env
+# 프론트엔드 환경 변수
+cp frontend/.env.example frontend/.env
+
+# 3. 백엔드 서버 실행
 cd backend
 go build -o server ./cmd/server
 ./server
 # 서버가 http://localhost:8080 에서 실행됩니다
 
-# 3. 프론트엔드 개발 서버 실행 (새 터미널)
+# 4. 프론트엔드 개발 서버 실행 (새 터미널)
 cd frontend
 npm install
 npm run dev
@@ -159,6 +165,48 @@ two-rooms-and-a-boom/
 - [ ] 인질 교환 기능
 - [ ] 게임 결과 판정
 - [ ] 배포 환경 설정
+
+## 환경 변수 설정
+
+### 백엔드 (Backend)
+
+환경 변수는 `backend/.env` 파일에서 설정합니다:
+
+```bash
+# 서버 포트
+PORT=8080
+
+# Gin 모드: debug, release, test
+GIN_MODE=debug
+
+# 프론트엔드 URL (CORS 설정용)
+FRONTEND_URL=http://localhost:5173
+```
+
+**프로덕션 설정:**
+- `GIN_MODE=release`로 설정
+- `FRONTEND_URL`을 실제 프론트엔드 도메인으로 변경
+
+### 프론트엔드 (Frontend)
+
+환경 변수는 `frontend/.env` 파일에서 설정합니다:
+
+```bash
+# 백엔드 API URL (HTTP)
+VITE_API_BASE_URL=http://localhost:8080
+
+# 백엔드 WebSocket URL
+VITE_WS_BASE_URL=ws://localhost:8080
+```
+
+**프로덕션 설정:**
+- `VITE_API_BASE_URL=https://api.your-domain.com`
+- `VITE_WS_BASE_URL=wss://api.your-domain.com` (보안 WebSocket)
+
+**참고:**
+- `.env.example` 파일을 복사하여 `.env` 파일 생성
+- `.env` 파일은 Git에 커밋되지 않음 (보안)
+- 프로덕션 배포 시 `.env.production.example` 참고
 
 ## 기여하기
 
