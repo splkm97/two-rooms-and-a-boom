@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: two-rooms-boom-config
+data:
+  PORT: "8080"
+  GIN_MODE: "release"
+  # Update FRONTEND_URL for your production domain
+  FRONTEND_URL: "https://your-domain.com"

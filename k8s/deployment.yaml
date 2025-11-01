@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: two-rooms-boom
+  labels:
+    app: two-rooms-boom
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: two-rooms-boom
+  template:
+    metadata:
+      labels:
+        app: two-rooms-boom
+    spec:
+      containers:
+      - name: two-rooms-boom
+        image: two-rooms-boom:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: PORT
+          value: "8080"
+        - name: GIN_MODE
+          value: "release"
+        - name: FRONTEND_URL
+          value: "http://localhost"  # Update this for production
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always

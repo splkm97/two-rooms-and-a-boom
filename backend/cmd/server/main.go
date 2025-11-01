@@ -110,6 +110,26 @@ func main() {
 	// WebSocket route
 	r.GET("/ws/:roomCode", wsHandler.HandleWebSocket)
 
+	// Serve frontend static files (for production deployment)
+	// This allows serving both frontend and backend from a single container
+	r.Static("/assets", "./frontend/dist/assets")
+	r.StaticFile("/vite.svg", "./frontend/dist/vite.svg")
+
+	// Serve index.html for all non-API routes (SPA routing)
+	r.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		// Don't serve index.html for API routes or WebSocket
+		if len(path) >= 4 && path[:4] == "/api" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
+			return
+		}
+		if len(path) >= 3 && path[:3] == "/ws" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
+			return
+		}
+		c.File("./frontend/dist/index.html")
+	})
+
 	// T104: Implement graceful shutdown
 	serverAddr := fmt.Sprintf(":%s", port)
 	srv := &http.Server{

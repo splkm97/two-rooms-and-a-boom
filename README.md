@@ -208,6 +208,55 @@ VITE_WS_BASE_URL=ws://localhost:8080
 - `.env` 파일은 Git에 커밋되지 않음 (보안)
 - 프로덕션 배포 시 `.env.production.example` 참고
 
+## Docker & Kubernetes 배포
+
+### Docker로 로컬 실행
+
+```bash
+# Docker Compose 사용
+docker-compose up
+
+# 또는 Docker만 사용
+docker build -t two-rooms-boom:latest .
+docker run -p 8080:8080 two-rooms-boom:latest
+```
+
+브라우저에서 `http://localhost:8080` 접속
+
+### Kubernetes 배포
+
+**단일 컨테이너 배포**: 프론트엔드와 백엔드가 하나의 컨테이너에서 실행되며, 단일 포트(8080)만 사용합니다.
+
+```bash
+# 1. Docker 이미지 빌드
+docker build -t two-rooms-boom:latest .
+
+# 2. Kubernetes에 배포
+kubectl apply -f k8s/
+
+# 3. 배포 상태 확인
+kubectl get pods
+kubectl get svc
+
+# 4. 애플리케이션 접속 (minikube)
+minikube service two-rooms-boom
+```
+
+**자동 빌드 & 배포 스크립트:**
+
+```bash
+# 기본 배포
+./build-and-deploy.sh
+
+# 특정 태그로 배포
+./build-and-deploy.sh v1.0.0
+
+# 레지스트리에 푸시하며 배포
+REGISTRY=myregistry.com ./build-and-deploy.sh
+```
+
+자세한 내용은 [`k8s/README.md`](k8s/README.md) 참조
+
 ## 기여하기
 
 이 프로젝트는 현재 개발 초기 단계입니다. 기여를 원하시는 분은 이슈를 생성하거나 Pull Request를 제출해주세요.
