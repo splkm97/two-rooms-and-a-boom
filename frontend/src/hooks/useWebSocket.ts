@@ -1,7 +1,23 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { WSMessage } from '../types/game.types';
 
-const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8080';
+// Determine WebSocket URL based on environment or current location
+const getWsBaseUrl = () => {
+  if (import.meta.env.VITE_WS_BASE_URL) {
+    return import.meta.env.VITE_WS_BASE_URL;
+  }
+
+  // Auto-detect from window.location (for production same-origin deployment)
+  if (typeof window !== 'undefined' && window.location.origin !== 'http://localhost:5173') {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}`;
+  }
+
+  // Default to localhost for development
+  return 'ws://localhost:8080';
+};
+
+const WS_BASE_URL = getWsBaseUrl();
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_INTERVAL = 3000; // 3 seconds
 

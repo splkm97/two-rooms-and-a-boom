@@ -1,4 +1,8 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+// Use environment variable, or window.location.origin for production (same origin), or default to localhost
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ||
+  (typeof window !== 'undefined' && window.location.origin !== 'http://localhost:5173'
+    ? window.location.origin
+    : 'http://localhost:8080');
 
 // T106: Korean error message mapping
 const ERROR_MESSAGES: Record<string, string> = {
