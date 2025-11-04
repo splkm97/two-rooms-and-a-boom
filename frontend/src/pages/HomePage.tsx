@@ -16,7 +16,7 @@ export function HomePage() {
     setError('');
     try {
       const room = await createRoom(10); // Default 10 players
-      navigate(`/lobby/${room.code}`);
+      navigate(`/room/${room.code}?view=lobby`);
     } catch (err: any) {
       // T105, T106: Use user-friendly Korean error message
       setError(err instanceof APIError ? err.userMessage : '방 생성에 실패했습니다');
@@ -30,14 +30,13 @@ export function HomePage() {
       setError('방 코드는 6자리여야 합니다');
       return;
     }
-    navigate(`/lobby/${roomCode.toUpperCase()}`);
+    navigate(`/room/${roomCode.toUpperCase()}?view=lobby`);
   };
 
   return (
     <Layout>
       <div style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
-        <h2 style={{ marginBottom: '2rem' }}>두개의 방, 한개의 폭탄</h2>
-        <p style={{ marginBottom: '3rem', color: '#666' }}>
+        <p style={{ marginBottom: '3rem', color: '#666', fontSize: '1.2rem', marginTop: '2rem' }}>
           역할 배분 시스템에 오신 것을 환영합니다
         </p>
 

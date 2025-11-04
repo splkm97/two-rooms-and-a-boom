@@ -19,7 +19,7 @@ export function RevealPage() {
       setTeam(storedTeam as TeamColor);
     } else {
       // 역할 정보가 없으면 게임 페이지로 리다이렉트
-      navigate(`/game/${roomCode}`);
+      navigate(`/room/${roomCode}?view=game`);
     }
   }, [roomCode, navigate]);
 

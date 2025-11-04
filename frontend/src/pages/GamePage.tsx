@@ -15,19 +15,23 @@ export function GamePage() {
   const [currentRoom, setCurrentRoom] = useState<RoomColor | null>(null);
   const [redRoomPlayers, setRedRoomPlayers] = useState<Player[]>([]);
   const [blueRoomPlayers, setBlueRoomPlayers] = useState<Player[]>([]);
-  const [currentPlayerId, setCurrentPlayerId] = useState<string>('');
-  const [isOwner, setIsOwner] = useState<boolean>(false);
+  // Load player ID and owner status from localStorage BEFORE useWebSocket
+  const storedPlayerId = localStorage.getItem(`playerId_${roomCode}`);
+  const storedIsOwner = localStorage.getItem(`isOwner_${roomCode}`) === 'true';
+
+  const [currentPlayerId, setCurrentPlayerId] = useState<string>(storedPlayerId || '');
+  const [isOwner, setIsOwner] = useState<boolean>(storedIsOwner);
   const [isResetting, setIsResetting] = useState<boolean>(false);
 
-  const { isConnected, lastMessage } = useWebSocket(roomCode || '');
+  const { isConnected, lastMessage } = useWebSocket(roomCode || '', currentPlayerId || undefined);
 
-  // Load player ID and owner status from localStorage
+  // Update state if roomCode changes
   useEffect(() => {
-    const storedPlayerId = localStorage.getItem(`playerId_${roomCode}`);
-    const storedIsOwner = localStorage.getItem(`isOwner_${roomCode}`) === 'true';
-    if (storedPlayerId) {
-      setCurrentPlayerId(storedPlayerId);
-      setIsOwner(storedIsOwner);
+    const newPlayerId = localStorage.getItem(`playerId_${roomCode}`);
+    const newIsOwner = localStorage.getItem(`isOwner_${roomCode}`) === 'true';
+    if (newPlayerId) {
+      setCurrentPlayerId(newPlayerId);
+      setIsOwner(newIsOwner);
     }
   }, [roomCode]);
 

@@ -104,7 +104,7 @@ export function LobbyPage() {
 
   // Handle WebSocket messages
   useEffect(() => {
-    if (!lastMessage || !room) return;
+    if (!lastMessage) return;
 
     try {
       switch (lastMessage.type) {
@@ -149,11 +149,10 @@ export function LobbyPage() {
           });
 
           // Update current player if it's them
-          if (currentPlayer && currentPlayer.id === playerId) {
-            setCurrentPlayer((prev) =>
-              prev ? { ...prev, nickname: newNickname, isAnonymous: false } : prev
-            );
-          }
+          setCurrentPlayer((prev) => {
+            if (!prev || prev.id !== playerId) return prev;
+            return { ...prev, nickname: newNickname, isAnonymous: false };
+          });
           break;
         }
 
@@ -171,9 +170,10 @@ export function LobbyPage() {
           });
 
           // Update current player if they're the new owner
-          if (currentPlayer && currentPlayer.id === newOwner.id) {
-            setCurrentPlayer((prev) => (prev ? { ...prev, isOwner: true } : prev));
-          }
+          setCurrentPlayer((prev) => {
+            if (!prev || prev.id !== newOwner.id) return prev;
+            return { ...prev, isOwner: true };
+          });
           break;
         }
 
@@ -186,7 +186,7 @@ export function LobbyPage() {
     } catch (err) {
       console.error('Failed to handle WebSocket message:', err);
     }
-  }, [lastMessage, room, currentPlayer, roomCode, navigate]);
+  }, [lastMessage, roomCode, navigate]);
 
   const handleNicknameUpdate = async (newNickname: string) => {
     if (!roomCode || !currentPlayer) {

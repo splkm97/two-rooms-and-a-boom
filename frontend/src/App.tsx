@@ -2,9 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import './App.css';
 import { HomePage } from './pages/HomePage';
-import { LobbyPage } from './pages/LobbyPage';
-import { GamePage } from './pages/GamePage';
-import { RevealPage } from './pages/RevealPage';
+import { RoomPage } from './pages/RoomPage';
 
 // T107: Browser compatibility check component
 function BrowserCompatibilityCheck({ children }: { children: React.ReactNode }) {
@@ -50,9 +48,13 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/lobby/:roomCode" element={<LobbyPage />} />
-          <Route path="/game/:roomCode" element={<GamePage />} />
-          <Route path="/reveal/:roomCode" element={<RevealPage />} />
+          {/* Unified room route with query parameter for view switching (lobby|game|reveal) */}
+          <Route path="/room/:roomCode" element={<RoomPage />} />
+
+          {/* Legacy routes - redirect to new query parameter structure */}
+          <Route path="/lobby/:roomCode" element={<RoomPage />} />
+          <Route path="/game/:roomCode" element={<RoomPage />} />
+          <Route path="/reveal/:roomCode" element={<RoomPage />} />
         </Routes>
       </Router>
     </BrowserCompatibilityCheck>
