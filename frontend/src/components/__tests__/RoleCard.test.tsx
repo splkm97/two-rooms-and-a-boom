@@ -135,7 +135,8 @@ describe('RoleCard', () => {
       />
     );
 
-    expect(screen.getByText(/현재 위치: 파란 방/)).toBeInTheDocument();
+    expect(screen.getByText(/📍 현재 위치:/)).toBeInTheDocument();
+    expect(screen.getByText('파란 방')).toBeInTheDocument();
   });
 
   it('should display current room location - red room', () => {
@@ -147,7 +148,8 @@ describe('RoleCard', () => {
       />
     );
 
-    expect(screen.getByText(/현재 위치: 빨간 방/)).toBeInTheDocument();
+    expect(screen.getByText(/📍 현재 위치:/)).toBeInTheDocument();
+    expect(screen.getByText('빨간 방')).toBeInTheDocument();
   });
 
   it('should render complete role card with all elements', () => {
@@ -170,9 +172,12 @@ describe('RoleCard', () => {
 
     expect(screen.getByText('스파이 리더')).toBeInTheDocument();
     expect(screen.getByText('특수 역할입니다')).toBeInTheDocument();
-    expect(screen.getByText('레드 팀')).toBeInTheDocument();
+    // For spy, displays opposite team (BLUE) with actual team in parentheses
+    expect(screen.getByText(/블루 팀/)).toBeInTheDocument();
+    expect(screen.getByText(/실제: 레드 팀/)).toBeInTheDocument();
     expect(screen.getByText(/👑 리더/)).toBeInTheDocument();
     expect(screen.getByText(/🕵️ 스파이/)).toBeInTheDocument();
-    expect(screen.getByText(/현재 위치: 파란 방/)).toBeInTheDocument();
+    expect(screen.getByText(/📍 현재 위치:/)).toBeInTheDocument();
+    expect(screen.getByText('파란 방')).toBeInTheDocument();
   });
 });

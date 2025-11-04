@@ -66,7 +66,7 @@ describe('HomePage', () => {
     // Should call API and navigate
     await waitFor(() => {
       expect(api.createRoom).toHaveBeenCalledWith(10);
-      expect(mockNavigate).toHaveBeenCalledWith('/lobby/ABC123');
+      expect(mockNavigate).toHaveBeenCalledWith('/room/ABC123?view=lobby');
     });
   });
 
@@ -94,7 +94,7 @@ describe('HomePage', () => {
     fireEvent.click(joinButton);
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/lobby/ABC123');
+      expect(mockNavigate).toHaveBeenCalledWith('/room/ABC123?view=lobby');
     });
   });
 

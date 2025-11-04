@@ -57,8 +57,7 @@ describe('PlayerList', () => {
   it('should highlight current player', () => {
     render(<PlayerList players={mockPlayers} currentPlayerId="2" />);
 
-    expect(screen.getByText(/Player 2/)).toBeInTheDocument();
-    expect(screen.getByText('(나)')).toBeInTheDocument();
+    expect(screen.getByText(/Player 2.*\(나\)/)).toBeInTheDocument();
   });
 
   it('should show empty state when no players', () => {

@@ -9,6 +9,7 @@ class MockWebSocket {
   static OPEN = 1;
   static CLOSING = 2;
   static CLOSED = 3;
+  static instances: MockWebSocket[] = [];
 
   url: string;
   readyState: number = MockWebSocket.CONNECTING;
@@ -19,6 +20,7 @@ class MockWebSocket {
 
   constructor(url: string) {
     this.url = url;
+    MockWebSocket.instances.push(this);
     // Simulate async connection
     setTimeout(() => {
       this.readyState = MockWebSocket.OPEN;
@@ -60,25 +62,28 @@ describe('useWebSocket', () => {
   let mockWS: MockWebSocket;
 
   beforeEach(() => {
-    // @ts-ignore
-    global.WebSocket = vi.fn((url: string) => {
-      mockWS = new MockWebSocket(url);
-      return mockWS;
-    });
-    vi.useFakeTimers();
+    // Clear previous instances
+    MockWebSocket.instances = [];
+    // @ts-ignore - Replace global WebSocket with our mock
+    global.WebSocket = MockWebSocket as any;
   });
 
   afterEach(() => {
-    vi.clearAllTimers();
-    vi.useRealTimers();
+    vi.clearAllMocks();
+    MockWebSocket.instances = [];
   });
 
   it('should connect to WebSocket on mount', async () => {
-    const { result } = renderHook(() => useWebSocket('ABC123'));
+    const { result } = renderHook(() => useWebSocket('ABC123', 'player-1'));
 
-    expect(global.WebSocket).toHaveBeenCalledWith(
-      expect.stringContaining('/ws/ABC123')
-    );
+    // Get the mock instance
+    await waitFor(() => {
+      expect(MockWebSocket.instances.length).toBeGreaterThan(0);
+    });
+
+    mockWS = MockWebSocket.instances[0];
+    expect(mockWS.url).toContain('/ws/ABC123');
+    expect(mockWS.url).toContain('playerId=player-1');
 
     // Wait for connection to open
     await waitFor(() => {
@@ -89,11 +94,17 @@ describe('useWebSocket', () => {
   it('should not connect if roomCode is empty', () => {
     renderHook(() => useWebSocket(''));
 
-    expect(global.WebSocket).not.toHaveBeenCalled();
+    expect(MockWebSocket.instances.length).toBe(0);
   });
 
   it('should receive and parse messages', async () => {
-    const { result } = renderHook(() => useWebSocket('ABC123'));
+    const { result } = renderHook(() => useWebSocket('ABC123', 'player-1'));
+
+    // Get the mock instance
+    await waitFor(() => {
+      expect(MockWebSocket.instances.length).toBeGreaterThan(0);
+    });
+    mockWS = MockWebSocket.instances[0];
 
     await waitFor(() => {
       expect(result.current.isConnected).toBe(true);
@@ -112,7 +123,13 @@ describe('useWebSocket', () => {
   });
 
   it('should send messages when connected', async () => {
-    const { result } = renderHook(() => useWebSocket('ABC123'));
+    const { result } = renderHook(() => useWebSocket('ABC123', 'player-1'));
+
+    // Get the mock instance
+    await waitFor(() => {
+      expect(MockWebSocket.instances.length).toBeGreaterThan(0);
+    });
+    mockWS = MockWebSocket.instances[0];
 
     await waitFor(() => {
       expect(result.current.isConnected).toBe(true);
@@ -130,7 +147,13 @@ describe('useWebSocket', () => {
   });
 
   it('should handle connection errors', async () => {
-    const { result } = renderHook(() => useWebSocket('ABC123'));
+    const { result } = renderHook(() => useWebSocket('ABC123', 'player-1'));
+
+    // Get the mock instance
+    await waitFor(() => {
+      expect(MockWebSocket.instances.length).toBeGreaterThan(0);
+    });
+    mockWS = MockWebSocket.instances[0];
 
     await waitFor(() => {
       expect(result.current.isConnected).toBe(true);
@@ -144,7 +167,13 @@ describe('useWebSocket', () => {
   });
 
   it('should close connection on unmount', async () => {
-    const { result, unmount } = renderHook(() => useWebSocket('ABC123'));
+    const { result, unmount } = renderHook(() => useWebSocket('ABC123', 'player-1'));
+
+    // Get the mock instance
+    await waitFor(() => {
+      expect(MockWebSocket.instances.length).toBeGreaterThan(0);
+    });
+    mockWS = MockWebSocket.instances[0];
 
     await waitFor(() => {
       expect(result.current.isConnected).toBe(true);
@@ -157,7 +186,13 @@ describe('useWebSocket', () => {
   });
 
   it('should handle manual reconnect', async () => {
-    const { result } = renderHook(() => useWebSocket('ABC123'));
+    const { result } = renderHook(() => useWebSocket('ABC123', 'player-1'));
+
+    // Get the mock instance
+    await waitFor(() => {
+      expect(MockWebSocket.instances.length).toBeGreaterThan(0);
+    });
+    mockWS = MockWebSocket.instances[0];
 
     await waitFor(() => {
       expect(result.current.isConnected).toBe(true);
@@ -170,14 +205,17 @@ describe('useWebSocket', () => {
       expect(result.current.connectionError).toBeTruthy();
     });
 
-    // Clear the mock call count
-    vi.clearAllMocks();
-
     // Manual reconnect
     result.current.manualReconnect();
 
+    // A new WebSocket instance should be created
     await waitFor(() => {
-      expect(global.WebSocket).toHaveBeenCalled();
+      expect(MockWebSocket.instances.length).toBe(2);
     });
   });
+
+  // Test removed: "should persist WebSocket connection during navigation"
+  // With query parameter routing (/room/:roomCode?view=lobby|game), the component
+  // stays mounted during view changes, so WebSocket naturally persists.
+  // No need for complex shared connection logic or testing it.
 });
