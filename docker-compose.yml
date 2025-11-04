@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   two-rooms-boom:
-    image: splkm97/2r1b:0.1
+    image: splkm97/2r1b:0.2
     container_name: two-rooms-boom
     ports:
       - "8080:8080"
