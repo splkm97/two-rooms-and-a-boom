@@ -105,9 +105,9 @@ func TestStartGame(t *testing.T) {
 					}
 
 					// Verify room assignment
-					roomColor, ok := player["roomColor"].(string)
-					if !ok || (roomColor != "RED_ROOM" && roomColor != "BLUE_ROOM") {
-						t.Errorf("Expected roomColor RED_ROOM or BLUE_ROOM, got %v", roomColor)
+					currentRoom, ok := player["currentRoom"].(string)
+					if !ok || (currentRoom != "RED_ROOM" && currentRoom != "BLUE_ROOM") {
+						t.Errorf("Expected currentRoom RED_ROOM or BLUE_ROOM, got %v", currentRoom)
 					}
 				}
 

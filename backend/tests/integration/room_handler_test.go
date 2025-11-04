@@ -212,9 +212,9 @@ func TestGetRoom(t *testing.T) {
 		{
 			name: "return 404 for non-existent room",
 			setupRoom: func(store *store.RoomStore) string {
-				return "NONEXIST" // This room code doesn't exist
+				return "NOEXST" // This room code doesn't exist (valid format)
 			},
-			roomCode:       "NONEXIST",
+			roomCode:       "NOEXST",
 			expectedStatus: http.StatusNotFound,
 			validateBody: func(t *testing.T, body map[string]interface{}) {
 				// Verify error structure

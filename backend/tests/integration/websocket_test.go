@@ -77,8 +77,17 @@ func TestWebSocketBroadcasts(t *testing.T) {
 		}
 		roomStore.Create(room)
 
-		// Connect first client
-		conn1, err := connectWebSocket(server.URL, room.Code)
+		// Add first player to room
+		player1 := &models.Player{
+			ID:       "player1",
+			Nickname: "Player 1",
+			IsOwner:  true,
+		}
+		room.Players = append(room.Players, player1)
+		roomStore.Update(room)
+
+		// Connect first client with playerID
+		conn1, err := connectWebSocketWithPlayerID(server.URL, room.Code, player1.ID)
 		if err != nil {
 			t.Fatalf("Failed to connect first WebSocket: %v", err)
 		}
@@ -87,8 +96,21 @@ func TestWebSocketBroadcasts(t *testing.T) {
 		// Wait a bit for connection to register
 		time.Sleep(100 * time.Millisecond)
 
-		// Connect second client
-		conn2, err := connectWebSocket(server.URL, room.Code)
+		// Clear CONNECTED messages for conn1
+		readWSMessage(conn1, 500*time.Millisecond) // CONNECTED
+		readWSMessage(conn1, 500*time.Millisecond) // PLAYER_JOINED for player1
+
+		// Add second player to room
+		player2 := &models.Player{
+			ID:       "player2",
+			Nickname: "Player 2",
+			IsOwner:  false,
+		}
+		room.Players = append(room.Players, player2)
+		roomStore.Update(room)
+
+		// Connect second client with playerID
+		conn2, err := connectWebSocketWithPlayerID(server.URL, room.Code, player2.ID)
 		if err != nil {
 			t.Fatalf("Failed to connect second WebSocket: %v", err)
 		}
@@ -101,8 +123,19 @@ func TestWebSocketBroadcasts(t *testing.T) {
 		}
 
 		// Verify message type
-		if msg.Type != "PLAYER_JOINED" {
-			t.Errorf("Expected message type PLAYER_JOINED, got %s", msg.Type)
+		if msg.Type != "PLAYER_JOINED" && msg.Type != "CONNECTED" {
+			t.Errorf("Expected message type PLAYER_JOINED or CONNECTED, got %s", msg.Type)
+		}
+
+		// If we got CONNECTED, read the next message which should be PLAYER_JOINED
+		if msg.Type == "CONNECTED" {
+			msg, err = readWSMessage(conn1, 2*time.Second)
+			if err != nil {
+				t.Fatalf("Failed to read PLAYER_JOINED message: %v", err)
+			}
+			if msg.Type != "PLAYER_JOINED" {
+				t.Errorf("Expected message type PLAYER_JOINED, got %s", msg.Type)
+			}
 		}
 
 		// Verify payload contains player data
@@ -138,8 +171,17 @@ func TestWebSocketBroadcasts(t *testing.T) {
 		}
 		roomStore.Create(room)
 
-		// Connect two clients
-		conn1, err := connectWebSocket(server.URL, room.Code)
+		// Add first player to room
+		player1 := &models.Player{
+			ID:       "player1",
+			Nickname: "Player 1",
+			IsOwner:  true,
+		}
+		room.Players = append(room.Players, player1)
+		roomStore.Update(room)
+
+		// Connect first client with playerID
+		conn1, err := connectWebSocketWithPlayerID(server.URL, room.Code, player1.ID)
 		if err != nil {
 			t.Fatalf("Failed to connect first WebSocket: %v", err)
 		}
@@ -147,22 +189,48 @@ func TestWebSocketBroadcasts(t *testing.T) {
 
 		time.Sleep(100 * time.Millisecond)
 
-		conn2, err := connectWebSocket(server.URL, room.Code)
+		// Clear CONNECTED and PLAYER_JOINED for conn1
+		readWSMessage(conn1, 500*time.Millisecond) // CONNECTED
+		readWSMessage(conn1, 500*time.Millisecond) // PLAYER_JOINED
+
+		// Add second player to room
+		player2 := &models.Player{
+			ID:       "player2",
+			Nickname: "Player 2",
+			IsOwner:  false,
+		}
+		room.Players = append(room.Players, player2)
+		roomStore.Update(room)
+
+		// Connect second client with playerID
+		conn2, err := connectWebSocketWithPlayerID(server.URL, room.Code, player2.ID)
 		if err != nil {
 			t.Fatalf("Failed to connect second WebSocket: %v", err)
 		}
 
-		// Wait for PLAYER_JOINED message on conn1
-		_, err = readWSMessage(conn1, 2*time.Second)
+		time.Sleep(100 * time.Millisecond)
+
+		// Read message on conn1 for conn2 joining
+		msg, err := readWSMessage(conn1, 2*time.Second)
 		if err != nil {
-			t.Fatalf("Failed to read PLAYER_JOINED message: %v", err)
+			t.Fatalf("Failed to read message: %v", err)
+		}
+
+		// Skip CONNECTED if present
+		if msg.Type == "CONNECTED" {
+			msg, err = readWSMessage(conn1, 2*time.Second)
+			if err != nil {
+				t.Fatalf("Failed to read PLAYER_JOINED message: %v", err)
+			}
 		}
 
 		// Disconnect second client
 		conn2.Close()
 
-		// Wait for PLAYER_LEFT broadcast to first client
-		msg, err := readWSMessage(conn1, 2*time.Second)
+		time.Sleep(100 * time.Millisecond)
+
+		// Wait for PLAYER_LEFT/DISCONNECTED broadcast to first client
+		msg, err = readWSMessage(conn1, 2*time.Second)
 		if err != nil {
 			t.Fatalf("Failed to read PLAYER_LEFT message: %v", err)
 		}
@@ -261,23 +329,37 @@ func TestWebSocketBroadcasts(t *testing.T) {
 
 		time.Sleep(100 * time.Millisecond)
 
+		// Clear CONNECTED for conn1
+		readWSMessage(conn1, 500*time.Millisecond)
+
 		conn2, err := connectWebSocket(server.URL, room.Code)
 		if err != nil {
 			t.Fatalf("Failed to connect second WebSocket: %v", err)
 		}
 		defer conn2.Close()
 
-		// Read PLAYER_JOINED on conn1 for conn2
+		time.Sleep(100 * time.Millisecond)
+
+		// Read messages on conn1 - might get CONNECTED for conn2 first
 		msg1, err := readWSMessage(conn1, 2*time.Second)
 		if err != nil {
 			t.Fatalf("Failed to read message on conn1: %v", err)
+		}
+
+		// Skip CONNECTED messages
+		if msg1.Type == "CONNECTED" {
+			msg1, err = readWSMessage(conn1, 2*time.Second)
+			if err != nil {
+				t.Fatalf("Failed to read message on conn1: %v", err)
+			}
 		}
 
 		if msg1.Type != "PLAYER_JOINED" {
 			t.Errorf("Expected PLAYER_JOINED on conn1, got %s", msg1.Type)
 		}
 
-		time.Sleep(100 * time.Millisecond)
+		// Clear CONNECTED for conn2
+		readWSMessage(conn2, 500*time.Millisecond)
 
 		conn3, err := connectWebSocket(server.URL, room.Code)
 		if err != nil {
@@ -285,7 +367,9 @@ func TestWebSocketBroadcasts(t *testing.T) {
 		}
 		defer conn3.Close()
 
-		// Both conn1 and conn2 should receive PLAYER_JOINED for conn3
+		time.Sleep(100 * time.Millisecond)
+
+		// Both conn1 and conn2 should receive messages for conn3
 		msg1, err = readWSMessage(conn1, 2*time.Second)
 		if err != nil {
 			t.Fatalf("Failed to read message on conn1: %v", err)
@@ -294,6 +378,21 @@ func TestWebSocketBroadcasts(t *testing.T) {
 		msg2, err := readWSMessage(conn2, 2*time.Second)
 		if err != nil {
 			t.Fatalf("Failed to read message on conn2: %v", err)
+		}
+
+		// Skip CONNECTED if present
+		if msg1.Type == "CONNECTED" {
+			msg1, err = readWSMessage(conn1, 2*time.Second)
+			if err != nil {
+				t.Fatalf("Failed to read message on conn1: %v", err)
+			}
+		}
+
+		if msg2.Type == "CONNECTED" {
+			msg2, err = readWSMessage(conn2, 2*time.Second)
+			if err != nil {
+				t.Fatalf("Failed to read message on conn2: %v", err)
+			}
 		}
 
 		if msg1.Type != "PLAYER_JOINED" {
@@ -335,6 +434,10 @@ func TestWebSocketBroadcasts(t *testing.T) {
 
 		time.Sleep(100 * time.Millisecond)
 
+		// Clear CONNECTED and PLAYER_JOINED for conn1
+		readWSMessage(conn1, 500*time.Millisecond) // CONNECTED
+		readWSMessage(conn1, 500*time.Millisecond) // PLAYER_JOINED
+
 		// Connect client to room2
 		conn2, err := connectWebSocket(server.URL, room2.Code)
 		if err != nil {
@@ -344,6 +447,10 @@ func TestWebSocketBroadcasts(t *testing.T) {
 
 		time.Sleep(100 * time.Millisecond)
 
+		// Clear CONNECTED and PLAYER_JOINED for conn2
+		readWSMessage(conn2, 500*time.Millisecond) // CONNECTED
+		readWSMessage(conn2, 500*time.Millisecond) // PLAYER_JOINED
+
 		// Connect another client to room2
 		conn3, err := connectWebSocket(server.URL, room2.Code)
 		if err != nil {
@@ -351,10 +458,20 @@ func TestWebSocketBroadcasts(t *testing.T) {
 		}
 		defer conn3.Close()
 
-		// conn2 should receive PLAYER_JOINED (conn3 joined room2)
+		time.Sleep(100 * time.Millisecond)
+
+		// conn2 should receive messages for conn3 joining room2
 		msg, err := readWSMessage(conn2, 2*time.Second)
 		if err != nil {
 			t.Fatalf("Failed to read message on conn2: %v", err)
+		}
+
+		// Skip CONNECTED if present
+		if msg.Type == "CONNECTED" {
+			msg, err = readWSMessage(conn2, 2*time.Second)
+			if err != nil {
+				t.Fatalf("Failed to read message on conn2: %v", err)
+			}
 		}
 
 		if msg.Type != "PLAYER_JOINED" {
@@ -411,7 +528,16 @@ func TestWebSocketGameMessages(t *testing.T) {
 		}
 		defer conn2.Close()
 
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(250 * time.Millisecond) // Wait for broadcasts
+
+		// Clear initial messages
+		// conn1: CONNECTED (unicast), PLAYER_JOINED (broadcast for conn1), PLAYER_JOINED (broadcast for conn2)
+		readWSMessage(conn1, 500*time.Millisecond)
+		readWSMessage(conn1, 500*time.Millisecond)
+		readWSMessage(conn1, 500*time.Millisecond)
+		// conn2: CONNECTED (unicast), PLAYER_JOINED (broadcast for conn2)
+		readWSMessage(conn2, 500*time.Millisecond)
+		readWSMessage(conn2, 500*time.Millisecond)
 
 		// Simulate GAME_STARTED broadcast
 		gameStartedMsg, err := ws.NewMessage("GAME_STARTED", map[string]interface{}{
@@ -485,6 +611,10 @@ func TestWebSocketGameMessages(t *testing.T) {
 		defer conn1.Close()
 
 		time.Sleep(100 * time.Millisecond)
+
+		// Clear initial CONNECTED and PLAYER_JOINED messages
+		readWSMessage(conn1, 500*time.Millisecond) // CONNECTED
+		readWSMessage(conn1, 500*time.Millisecond) // PLAYER_JOINED
 
 		// Simulate ROLE_ASSIGNED unicast
 		roleAssignedMsg, err := ws.NewMessage("ROLE_ASSIGNED", map[string]interface{}{
@@ -574,10 +704,15 @@ func TestWebSocketGameMessages(t *testing.T) {
 		}
 		defer conn2.Close()
 
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(250 * time.Millisecond) // Wait for broadcasts
 
-		// Clear PLAYER_JOINED messages
+		// Clear initial messages
 		readWSMessage(conn1, 500*time.Millisecond)
+		readWSMessage(conn1, 500*time.Millisecond)
+		readWSMessage(conn1, 500*time.Millisecond)
+		readWSMessage(conn1, 500*time.Millisecond)
+		readWSMessage(conn2, 500*time.Millisecond)
+		readWSMessage(conn2, 500*time.Millisecond)
 
 		// Unicast ROLE_ASSIGNED to player2 only
 		roleAssignedMsg, err := ws.NewMessage("ROLE_ASSIGNED", map[string]interface{}{
@@ -667,7 +802,16 @@ func TestWebSocketGameMessages(t *testing.T) {
 		}
 		defer conn2.Close()
 
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(250 * time.Millisecond) // Wait for broadcasts
+
+		// Clear initial messages
+		// conn1: CONNECTED (unicast), PLAYER_JOINED (broadcast for conn1), PLAYER_JOINED (broadcast for conn2)
+		readWSMessage(conn1, 500*time.Millisecond)
+		readWSMessage(conn1, 500*time.Millisecond)
+		readWSMessage(conn1, 500*time.Millisecond)
+		// conn2: CONNECTED (unicast), PLAYER_JOINED (broadcast for conn2)
+		readWSMessage(conn2, 500*time.Millisecond)
+		readWSMessage(conn2, 500*time.Millisecond)
 
 		// Simulate GAME_RESET broadcast
 		gameResetMsg, err := ws.NewMessage("GAME_RESET", map[string]interface{}{
