@@ -44,7 +44,7 @@ export function RoomPlayerList({ players, roomColor, currentPlayerId }: RoomPlay
             <span style={{
               fontSize: '1.1rem',
               fontWeight: player.id === currentPlayerId ? 'bold' : '500',
-              color: 'var(--text-primary)'
+              color: '#1f2937'  // Dark gray for readability on white background
             }}>
               {player.nickname}
               {player.id === currentPlayerId && (
