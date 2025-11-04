@@ -503,20 +503,36 @@ export function RoomPage() {
 
     return (
       <Layout>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
-          <div style={{ marginBottom: '2rem' }}>
-            <h1 style={{ margin: 0, color: 'var(--text-primary)' }}>게임 진행 중</h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>
+        <div style={{
+          maxWidth: '1200px',
+          margin: '0 auto',
+          padding: 'clamp(0.5rem, 3vw, 2rem)',
+          width: '100%',
+          boxSizing: 'border-box',
+        }}>
+          <div style={{ marginBottom: 'clamp(1rem, 3vw, 2rem)' }}>
+            <h1 style={{
+              margin: 0,
+              color: 'var(--text-primary)',
+              fontSize: 'clamp(1.5rem, 5vw, 2rem)',
+            }}>
+              게임 진행 중
+            </h1>
+            <p style={{
+              color: 'var(--text-secondary)',
+              fontSize: 'clamp(0.85rem, 2.5vw, 1rem)',
+            }}>
               방 코드: <strong>{roomCode}</strong>
             </p>
           </div>
 
           <div
+            className="game-container"
             style={{
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '2rem',
-              marginBottom: '2rem',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
+              gap: 'clamp(1rem, 3vw, 2rem)',
+              marginBottom: 'clamp(1rem, 3vw, 2rem)',
             }}
           >
             <div>
@@ -525,14 +541,14 @@ export function RoomPage() {
               <button
                 onClick={() => setSearchParams({ view: 'reveal' })}
                 style={{
-                  marginTop: '1rem',
+                  marginTop: 'clamp(0.75rem, 2vw, 1rem)',
                   width: '100%',
-                  padding: '1rem',
+                  padding: 'clamp(0.75rem, 2.5vw, 1rem)',
                   backgroundColor: team === 'RED' ? '#dc2626' : '#2563eb',
                   color: 'white',
                   border: 'none',
                   borderRadius: '8px',
-                  fontSize: '1.1rem',
+                  fontSize: 'clamp(1rem, 3vw, 1.1rem)',
                   fontWeight: 'bold',
                   cursor: 'pointer',
                 }}
@@ -542,7 +558,12 @@ export function RoomPage() {
             </div>
 
             <div>
-              <h2 style={{ marginTop: 0 }}>같은 방에 있는 플레이어</h2>
+              <h2 style={{
+                marginTop: 0,
+                fontSize: 'clamp(1.2rem, 4vw, 1.5rem)',
+              }}>
+                같은 방에 있는 플레이어
+              </h2>
               <RoomPlayerList
                 players={playersInMyRoom}
                 roomColor={currentRoom}
@@ -553,29 +574,36 @@ export function RoomPage() {
 
           <div
             style={{
-              padding: '1rem',
+              padding: 'clamp(0.75rem, 2.5vw, 1rem)',
               backgroundColor: '#f3f4f6',
               borderRadius: '8px',
               textAlign: 'center',
             }}
           >
-            <p style={{ margin: 0, color: '#666' }}>
+            <p style={{
+              margin: 0,
+              color: '#666',
+              fontSize: 'clamp(0.85rem, 2.5vw, 1rem)',
+            }}>
               오프라인에서 다른 플레이어들과 역할 공개, 정보 교환, 카드 교환을 진행하세요.
             </p>
           </div>
 
           {currentPlayer.isOwner && (
-            <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+            <div style={{
+              marginTop: 'clamp(1rem, 3vw, 2rem)',
+              textAlign: 'center',
+            }}>
               <button
                 onClick={handleResetGame}
                 disabled={isResetting}
                 style={{
-                  padding: '0.75rem 1.5rem',
+                  padding: 'clamp(0.65rem, 2vw, 0.75rem) clamp(1.25rem, 3vw, 1.5rem)',
                   backgroundColor: isResetting ? '#6c757d' : '#dc2626',
                   color: 'white',
                   border: 'none',
                   borderRadius: '8px',
-                  fontSize: '1rem',
+                  fontSize: 'clamp(0.9rem, 2.5vw, 1rem)',
                   fontWeight: 'bold',
                   cursor: isResetting ? 'not-allowed' : 'pointer',
                   opacity: isResetting ? 0.6 : 1,
