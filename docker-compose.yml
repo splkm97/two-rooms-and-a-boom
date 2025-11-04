@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  two-rooms-boom:
+    image: splkm97/2r1b:0.1
+    container_name: two-rooms-boom
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - GIN_MODE=release
+      - FRONTEND_URL=http://localhost:8080
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - two-rooms-boom-network
+
+networks:
+  two-rooms-boom-network:
+    driver: bridge
