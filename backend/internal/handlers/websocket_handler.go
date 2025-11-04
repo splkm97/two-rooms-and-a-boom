@@ -45,7 +45,7 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	playerID := c.Query("playerId")
 
 	// Verify room exists
-	room, err := h.roomService.GetRoom(roomCode)
+	_, err := h.roomService.GetRoom(roomCode)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"code":    "ROOM_NOT_FOUND",
@@ -81,21 +81,18 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 
 	// Send welcome message in a goroutine to avoid blocking
 	go func() {
-		// Give pumps time to start
-		time.Sleep(100 * time.Millisecond)
-
 		welcomeMsg, _ := ws.NewMessage("CONNECTED", map[string]interface{}{
 			"roomCode": roomCode,
 			"message":  "WebSocket connected successfully",
 		})
-		h.hub.Broadcast(roomCode, *welcomeMsg)
-		log.Printf("[INFO] Sent CONNECTED message to room %s", roomCode)
+		// Send CONNECTED only to this client (not broadcast to room)
+		data, _ := welcomeMsg.Marshal()
+		client.Send(data)
+		log.Printf("[INFO] Sent CONNECTED message to client in room %s", roomCode)
 	}()
 
 	// Broadcast PLAYER_JOINED message
-	// In a real implementation, we'd get the player ID from the connection
-	// For now, we'll let the client handle this after connection
-	go h.broadcastPlayerJoined(roomCode, room)
+	go h.broadcastPlayerJoined(roomCode, playerID)
 }
 
 // registerClient registers a client with the hub
@@ -106,9 +103,34 @@ func (h *WebSocketHandler) registerClient(client *ws.Client) {
 }
 
 // broadcastPlayerJoined broadcasts PLAYER_JOINED message to room
-func (h *WebSocketHandler) broadcastPlayerJoined(roomCode string, room interface{}) {
-	// This is a placeholder - in full implementation, we'd:
-	// 1. Get the newly connected player's info
-	// 2. Broadcast PLAYER_JOINED with player data
-	// For now, this is handled in the integration tests
+func (h *WebSocketHandler) broadcastPlayerJoined(roomCode string, playerID string) {
+	// Give time for the client to register
+	time.Sleep(100 * time.Millisecond)
+
+	// If playerID is provided, get player info from room
+	payload := map[string]interface{}{
+		"roomCode": roomCode,
+	}
+
+	if playerID != "" {
+		// Get room and find player
+		room, err := h.roomService.GetRoom(roomCode)
+		if err == nil && room != nil {
+			// Find player in room
+			for _, player := range room.Players {
+				if player.ID == playerID {
+					payload["player"] = map[string]interface{}{
+						"id":       player.ID,
+						"nickname": player.Nickname,
+					}
+					break
+				}
+			}
+		}
+	}
+
+	// Broadcast PLAYER_JOINED message
+	playerJoinedMsg, _ := ws.NewMessage("PLAYER_JOINED", payload)
+	h.hub.Broadcast(roomCode, *playerJoinedMsg)
+	log.Printf("[INFO] Broadcast PLAYER_JOINED message to room %s", roomCode)
 }

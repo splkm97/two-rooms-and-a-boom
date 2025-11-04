@@ -217,6 +217,8 @@ func (s *GameService) StartGame(roomCode string) (*models.GameSession, error) {
 		s.hub.BroadcastGameStarted(roomCode, gameStartedPayload)
 
 		// Send ROLE_ASSIGNED to each player individually (T075)
+		// Note: No delay needed with query parameter routing approach
+		// as WebSocket connection persists during view changes
 		for _, player := range room.Players {
 			roleAssignedPayload := map[string]interface{}{
 				"role":        player.Role,

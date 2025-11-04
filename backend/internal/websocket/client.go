@@ -54,6 +54,25 @@ func (c *Client) SetPlayerID(playerID string) {
 	c.playerID = playerID
 }
 
+// Send sends a message to this client
+// Send sends a message to this client
+// Send sends a message to this client
+func (c *Client) Send(data []byte) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[WARN] Recovered from panic sending to client in room %s: %v", c.roomCode, r)
+		}
+	}()
+	
+	select {
+	case c.send <- data:
+		// Message sent successfully
+	default:
+		// Channel is full, log and skip
+		log.Printf("[WARN] Failed to send message to client in room %s (channel full)", c.roomCode)
+	}
+}
+
 // ReadPump pumps messages from the WebSocket connection to the hub
 func (c *Client) ReadPump() {
 	defer func() {
