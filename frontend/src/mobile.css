@@ -1,0 +1,119 @@
+/* Mobile-responsive styles for Two Rooms and a Boom */
+
+/* Ensure all containers are mobile-friendly */
+* {
+  box-sizing: border-box;
+}
+
+/* Mobile-specific utilities */
+@media (max-width: 768px) {
+  /* Container adjustments */
+  .container {
+    padding: 0.5rem !important;
+    max-width: 100% !important;
+  }
+
+  /* Button adjustments for mobile */
+  button {
+    min-height: 44px; /* iOS minimum touch target */
+    font-size: clamp(0.9rem, 3vw, 1rem) !important;
+    padding: 0.75rem 1rem !important;
+  }
+
+  /* Input field adjustments */
+  input {
+    min-height: 44px;
+    font-size: 16px !important; /* Prevents zoom on iOS */
+  }
+
+  /* Card/panel adjustments */
+  .card, .panel {
+    padding: 1rem !important;
+    margin: 0.5rem 0 !important;
+  }
+
+  /* Player list adjustments */
+  .player-list {
+    font-size: 0.9rem !important;
+  }
+
+  /* Room info adjustments */
+  .room-info {
+    font-size: 0.85rem !important;
+  }
+
+  /* Reveal page adjustments */
+  .reveal-container {
+    padding: 1rem !important;
+  }
+
+  .reveal-title {
+    font-size: clamp(2rem, 8vw, 4rem) !important;
+  }
+
+  /* Game view adjustments */
+  .game-container {
+    padding: 0.5rem !important;
+  }
+
+  .room-players-container {
+    margin: 0.5rem 0 !important;
+  }
+}
+
+/* Extra small devices (phones in portrait, less than 576px) */
+@media (max-width: 576px) {
+  h1 {
+    font-size: 1.5rem !important;
+  }
+
+  h2 {
+    font-size: 1.25rem !important;
+  }
+
+  h3 {
+    font-size: 1.1rem !important;
+  }
+
+  p {
+    font-size: 0.9rem !important;
+  }
+
+  /* Stack buttons vertically on very small screens */
+  .button-group {
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+
+  .button-group button {
+    width: 100% !important;
+  }
+}
+
+/* Landscape mode adjustments for mobile */
+@media (max-width: 896px) and (orientation: landscape) {
+  header h1 {
+    font-size: 1.5rem !important;
+  }
+
+  main {
+    padding: 0.5rem !important;
+  }
+
+  footer {
+    font-size: 0.75rem !important;
+    padding: 0.5rem !important;
+  }
+}
+
+/* Touch-friendly spacing */
+@media (hover: none) and (pointer: coarse) {
+  /* This targets touch devices */
+  button {
+    margin: 0.25rem 0;
+  }
+
+  a, button, input, select {
+    min-height: 44px; /* iOS minimum */
+  }
+}

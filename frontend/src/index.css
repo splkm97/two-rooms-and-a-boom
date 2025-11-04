@@ -43,6 +43,21 @@ h1 {
   line-height: 1.1;
 }
 
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2em;
+  }
+
+  h2 {
+    font-size: 1.5em;
+  }
+
+  h3 {
+    font-size: 1.2em;
+  }
+}
+
 button {
   border-radius: 8px;
   border: 1px solid transparent;

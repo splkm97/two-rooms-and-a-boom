@@ -401,6 +401,7 @@ export function RoomPage() {
 
     return (
       <div
+        className="reveal-container"
         style={{
           position: 'fixed',
           top: 0,
@@ -412,7 +413,7 @@ export function RoomPage() {
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
-          padding: '2rem',
+          padding: 'clamp(1rem, 3vw, 2rem)',
         }}
       >
         {/* Back button */}
@@ -420,14 +421,14 @@ export function RoomPage() {
           onClick={() => setSearchParams({ view: 'game' })}
           style={{
             position: 'absolute',
-            top: '1rem',
-            left: '1rem',
-            padding: '0.75rem 1.5rem',
+            top: 'clamp(0.5rem, 2vw, 1rem)',
+            left: 'clamp(0.5rem, 2vw, 1rem)',
+            padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.5rem)',
             backgroundColor: 'rgba(255, 255, 255, 0.2)',
             color: textColor,
             border: `2px solid ${textColor}`,
             borderRadius: '8px',
-            fontSize: '1rem',
+            fontSize: 'clamp(0.85rem, 2.5vw, 1rem)',
             fontWeight: 'bold',
             cursor: 'pointer',
           }}
@@ -436,22 +437,24 @@ export function RoomPage() {
         </button>
 
         {/* Center content - display team color only (hide role details) */}
-        <div style={{ textAlign: 'center', maxWidth: '600px' }}>
+        <div style={{ textAlign: 'center', maxWidth: '90%', width: '100%' }}>
           <div
             style={{
               backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              padding: '3rem 4rem',
+              padding: 'clamp(2rem, 8vw, 4rem)',
               borderRadius: '24px',
               border: `4px solid rgba(255, 255, 255, 0.5)`,
             }}
           >
             <h1
+              className="reveal-title"
               style={{
                 color: textColor,
-                fontSize: '5rem',
+                fontSize: 'clamp(2.5rem, 12vw, 5rem)',
                 fontWeight: 'bold',
                 margin: 0,
                 textShadow: '3px 3px 6px rgba(0, 0, 0, 0.4)',
+                lineHeight: 1.2,
               }}
             >
               {displayTeam === 'RED' ? '레드 팀' : '블루 팀'}

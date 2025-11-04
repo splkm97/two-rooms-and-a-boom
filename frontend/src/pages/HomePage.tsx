@@ -35,8 +35,20 @@ export function HomePage() {
 
   return (
     <Layout>
-      <div style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
-        <p style={{ marginBottom: '3rem', color: '#666', fontSize: '1.2rem', marginTop: '2rem' }}>
+      <div style={{
+        maxWidth: '600px',
+        margin: '0 auto',
+        textAlign: 'center',
+        width: '100%',
+        padding: '0 1rem',
+        boxSizing: 'border-box',
+      }}>
+        <p style={{
+          marginBottom: 'clamp(1.5rem, 5vw, 3rem)',
+          color: '#666',
+          fontSize: 'clamp(1rem, 3vw, 1.2rem)',
+          marginTop: 'clamp(1rem, 3vw, 2rem)',
+        }}>
           역할 배분 시스템에 오신 것을 환영합니다
         </p>
 
@@ -60,14 +72,16 @@ export function HomePage() {
             onClick={handleCreateRoom}
             disabled={isCreating}
             style={{
-              padding: '1rem 2rem',
-              fontSize: '1.2rem',
+              padding: 'clamp(0.8rem, 2vw, 1rem) clamp(1.5rem, 4vw, 2rem)',
+              fontSize: 'clamp(1rem, 3vw, 1.2rem)',
               backgroundColor: '#007bff',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
               cursor: isCreating ? 'not-allowed' : 'pointer',
               opacity: isCreating ? 0.6 : 1,
+              width: '100%',
+              maxWidth: '400px',
             }}
           >
             {isCreating ? '생성 중...' : '방 만들기'}
@@ -83,7 +97,13 @@ export function HomePage() {
             또는
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem',
+            width: '100%',
+            maxWidth: '400px',
+          }}>
             <input
               type="text"
               placeholder="방 코드 입력 (6자리)"
@@ -91,20 +111,22 @@ export function HomePage() {
               onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
               maxLength={6}
               style={{
-                flex: 1,
-                padding: '1rem',
-                fontSize: '1.2rem',
+                width: '100%',
+                padding: 'clamp(0.8rem, 2vw, 1rem)',
+                fontSize: 'clamp(1rem, 3vw, 1.2rem)',
                 border: '1px solid #ddd',
                 borderRadius: '8px',
                 textAlign: 'center',
                 textTransform: 'uppercase',
+                boxSizing: 'border-box',
               }}
             />
             <button
               onClick={handleJoinRoom}
               style={{
-                padding: '1rem 2rem',
-                fontSize: '1.2rem',
+                width: '100%',
+                padding: 'clamp(0.8rem, 2vw, 1rem)',
+                fontSize: 'clamp(1rem, 3vw, 1.2rem)',
                 backgroundColor: '#28a745',
                 color: 'white',
                 border: 'none',
