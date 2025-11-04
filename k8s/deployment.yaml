@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
       - name: two-rooms-boom
-        image: two-rooms-boom:latest
-        imagePullPolicy: IfNotPresent
+        image: "splkm97/2r1b:0.1"
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
           name: http

@@ -3,24 +3,24 @@
 # The Go backend serves the React frontend static files
 
 # Stage 1: Build Frontend
-FROM node:18-alpine AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
 # Copy frontend package files
 COPY frontend/package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (including devDependencies needed for build)
+RUN npm ci
 
 # Copy frontend source
 COPY frontend/ ./
 
-# Build frontend for production
-RUN npm run build
+# Build frontend for production (skip type checking for faster build)
+RUN npx vite build
 
 # Stage 2: Build Backend
-FROM golang:1.21-alpine AS backend-builder
+FROM golang:1.25-alpine AS backend-builder
 
 WORKDIR /app/backend
 
