@@ -70,7 +70,7 @@
 - [X] T022 [P] Create API client base configuration with fetch wrapper in frontend/src/services/api.ts
 - [X] T023 [P] **TEST FIRST**: Create useWebSocket hook test in frontend/src/hooks/__tests__/useWebSocket.test.ts
 - [X] T024 [P] Implement useWebSocket custom hook in frontend/src/hooks/useWebSocket.ts
-- [X] T025 [P] Setup React Router with routes (/, /lobby/:roomCode, /game/:roomCode) in frontend/src/App.tsx
+- [X] T025 [P] Setup React Router with routes (/, /room/:roomCode) in frontend/src/App.tsx (view parameter: ?view=lobby|game)
 - [X] T026 [P] Create layout components (Header, Footer) in frontend/src/components/Layout.tsx
 
 **Checkpoint**: Foundation ready - 사용자 스토리 구현 시작 가능
@@ -243,6 +243,27 @@
 - 각 작업 또는 논리적 그룹 후 커밋
 - 각 체크포인트에서 중지하여 스토리 독립적으로 검증
 - 피해야 할 것: 모호한 작업, 동일 파일 충돌, 독립성을 깨는 스토리 간 의존성
+
+### Routing Architecture Update (2025-11-04)
+
+**Migration from Path-based to Query Parameter Routing**:
+- **Old**: `/lobby/:roomCode` and `/game/:roomCode` (separate routes, separate components)
+- **New**: `/room/:roomCode?view=lobby` and `/room/:roomCode?view=game` (single route, single component)
+
+**Rationale**:
+- Path-based routing caused WebSocket disconnections during navigation due to component unmounting
+- Query parameter approach keeps the same component mounted, naturally persisting WebSocket connections
+- Eliminates need for complex shared connection logic and artificial delays
+
+**Changes Made**:
+1. Merged `LobbyPage.tsx` and `GamePage.tsx` into single `RoomPage.tsx` component
+2. Created `LobbyView.tsx` and `GameView.tsx` sub-components for conditional rendering
+3. Updated routing in `App.tsx` to use query parameters
+4. Removed 100ms delay workaround from `backend/internal/services/game_service.go`
+5. Simplified `useWebSocket.ts` by removing shared connection logic
+6. Updated all tests to reflect new routing structure
+
+**See Also**: `specs/websocket-architecture.md` for detailed analysis and migration guide
 
 ---
 

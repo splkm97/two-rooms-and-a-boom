@@ -320,7 +320,7 @@ components:
       schema:
         type: string
         pattern: '^[A-Z0-9]{6}$'
-      description: 6자리 방 코드 (예: ABC123)
+      description: "6자리 방 코드 (예: ABC123)"
       example: "ABC123"
 
   schemas:
