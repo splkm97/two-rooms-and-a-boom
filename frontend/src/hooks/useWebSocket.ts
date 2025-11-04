@@ -5,6 +5,13 @@ const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8080';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_INTERVAL = 3000; // 3 seconds
 
+/**
+ * useWebSocket hook - simplified version for query parameter routing
+ *
+ * With query parameter routing (/room/:roomCode?view=lobby|game), the component
+ * stays mounted during view changes, so the WebSocket connection naturally persists.
+ * No need for complex shared connection logic.
+ */
 export function useWebSocket(roomCode: string, playerId?: string) {
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
@@ -36,20 +43,19 @@ export function useWebSocket(roomCode: string, playerId?: string) {
     }
 
     try {
-      const wsUrl = playerId
-        ? `${WS_BASE_URL}/ws/${roomCode}?playerId=${playerId}`
-        : `${WS_BASE_URL}/ws/${roomCode}`;
-      ws.current = new WebSocket(wsUrl);
+      const wsUrl = `${WS_BASE_URL}/ws/${roomCode}?playerId=${playerId}`;
+      const websocket = new WebSocket(wsUrl);
+      ws.current = websocket;
 
-      ws.current.onopen = () => {
-        console.log('WebSocket connected');
+      websocket.onopen = () => {
+        console.log(`WebSocket connected: ${roomCode}-${playerId}`);
         isConnectedRef.current = true;
         setIsConnected(true);
         setConnectionError(null);
-        setReconnectAttempts(0); // Reset reconnect counter on successful connection
+        setReconnectAttempts(0);
       };
 
-      ws.current.onmessage = (event) => {
+      websocket.onmessage = (event) => {
         try {
           // Handle multiple newline-separated JSON messages in one frame
           const data = event.data.toString().trim();
@@ -57,7 +63,7 @@ export function useWebSocket(roomCode: string, playerId?: string) {
 
           // Fallback: If we receive a message but onopen didn't fire, mark as connected
           if (!isConnectedRef.current && messages.length > 0) {
-            console.log('WebSocket connected (via message fallback)');
+            console.log(`WebSocket connected (via message fallback): ${roomCode}-${playerId}`);
             isConnectedRef.current = true;
             setIsConnected(true);
             setConnectionError(null);
@@ -79,12 +85,12 @@ export function useWebSocket(roomCode: string, playerId?: string) {
         }
       };
 
-      ws.current.onclose = (event) => {
-        console.log('WebSocket disconnected', event.code, event.reason);
+      websocket.onclose = (event) => {
+        console.log(`WebSocket disconnected: ${roomCode}-${playerId}`, event.code, event.reason);
         isConnectedRef.current = false;
         setIsConnected(false);
 
-        // Don't reconnect if it was an intentional close or server rejected connection
+        // Don't reconnect if it was an intentional close
         if (intentionalClose.current) {
           return;
         }
@@ -101,16 +107,21 @@ export function useWebSocket(roomCode: string, playerId?: string) {
         }
 
         // Auto-reconnect after interval
-        setReconnectAttempts(prev => prev + 1);
-        setConnectionError(`연결이 끊어졌습니다. 재연결 시도 중... (${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
+        const newAttempts = reconnectAttempts + 1;
+        setReconnectAttempts(newAttempts);
+        setConnectionError(`연결이 끊어졌습니다. 재연결 시도 중... (${newAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+
+        if (reconnectTimeout.current) {
+          clearTimeout(reconnectTimeout.current);
+        }
 
         reconnectTimeout.current = setTimeout(() => {
           connect();
         }, RECONNECT_INTERVAL);
       };
 
-      ws.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
+      websocket.onerror = (error) => {
+        console.error(`WebSocket error: ${roomCode}-${playerId}`, error);
         setConnectionError('연결 오류가 발생했습니다.');
       };
     } catch (error) {
@@ -143,6 +154,13 @@ export function useWebSocket(roomCode: string, playerId?: string) {
   }, []);
 
   const manualReconnect = useCallback(() => {
+    if (ws.current) {
+      ws.current.close();
+    }
+    if (reconnectTimeout.current) {
+      clearTimeout(reconnectTimeout.current);
+    }
+
     setReconnectAttempts(0);
     setConnectionError(null);
     connect();
