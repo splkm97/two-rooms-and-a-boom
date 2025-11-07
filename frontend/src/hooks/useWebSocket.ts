@@ -42,13 +42,11 @@ export function useWebSocket(roomCode: string, playerId?: string) {
   const connect = useCallback(() => {
     // Don't connect if roomCode is empty or invalid
     if (!roomCode || roomCode.length < 6) {
-      console.log('WebSocket: Skipping connection (invalid room code)');
       return;
     }
 
     // Don't connect if playerId is not available yet
     if (!playerId) {
-      console.log('WebSocket: Skipping connection (waiting for playerId)');
       return;
     }
 
@@ -64,7 +62,6 @@ export function useWebSocket(roomCode: string, playerId?: string) {
       ws.current = websocket;
 
       websocket.onopen = () => {
-        console.log(`WebSocket connected: ${roomCode}-${playerId}`);
         isConnectedRef.current = true;
         setIsConnected(true);
         setConnectionError(null);
@@ -79,7 +76,6 @@ export function useWebSocket(roomCode: string, playerId?: string) {
 
           // Fallback: If we receive a message but onopen didn't fire, mark as connected
           if (!isConnectedRef.current && messages.length > 0) {
-            console.log(`WebSocket connected (via message fallback): ${roomCode}-${playerId}`);
             isConnectedRef.current = true;
             setIsConnected(true);
             setConnectionError(null);
@@ -91,18 +87,16 @@ export function useWebSocket(roomCode: string, playerId?: string) {
             try {
               const message: WSMessage = JSON.parse(msgData);
               setLastMessage(message);
-            } catch (parseError) {
-              console.error('Failed to parse individual WebSocket message:', msgData, parseError);
+            } catch {
+              // Parse error handled silently
             }
           }
-        } catch (error) {
-          console.error('Failed to process WebSocket message:', error);
+        } catch {
           setConnectionError('메시지 처리 중 오류가 발생했습니다.');
         }
       };
 
       websocket.onclose = (event) => {
-        console.log(`WebSocket disconnected: ${roomCode}-${playerId}`, event.code, event.reason);
         isConnectedRef.current = false;
         setIsConnected(false);
 
@@ -140,12 +134,10 @@ export function useWebSocket(roomCode: string, playerId?: string) {
         }, RECONNECT_INTERVAL);
       };
 
-      websocket.onerror = (error) => {
-        console.error(`WebSocket error: ${roomCode}-${playerId}`, error);
+      websocket.onerror = () => {
         setConnectionError('연결 오류가 발생했습니다.');
       };
-    } catch (error) {
-      console.error('Failed to connect WebSocket:', error);
+    } catch {
       setConnectionError('WebSocket 연결에 실패했습니다.');
     }
   }, [roomCode, playerId, reconnectAttempts]);
@@ -168,8 +160,6 @@ export function useWebSocket(roomCode: string, playerId?: string) {
   const sendMessage = useCallback((message: WSMessage) => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify(message));
-    } else {
-      console.warn('Cannot send message: WebSocket is not connected');
     }
   }, []);
 

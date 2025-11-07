@@ -49,14 +49,11 @@ export function GamePage() {
       if (role && team && currentRoom) return; // Already have role data
 
       // First, try to load from localStorage (set by RoomPage when ROLE_ASSIGNED received)
-      console.log('[GamePage] Checking localStorage for roomCode:', roomCode);
       const storedRole = localStorage.getItem(`role_${roomCode}`);
       const storedTeam = localStorage.getItem(`team_${roomCode}`);
       const storedCurrentRoom = localStorage.getItem(`currentRoom_${roomCode}`);
-      console.log('[GamePage] localStorage data:', { storedRole, storedTeam, storedCurrentRoom });
 
       if (storedRole && storedTeam && storedCurrentRoom) {
-        console.log('[GamePage] Loading role data from localStorage');
         setRole(JSON.parse(storedRole));
         setTeam(storedTeam as TeamColor);
         setCurrentRoom(storedCurrentRoom as RoomColor);
@@ -68,35 +65,25 @@ export function GamePage() {
           const bluePlayers = roomData.players.filter((p: Player) => p.currentRoom === 'BLUE_ROOM');
           setRedRoomPlayers(redPlayers);
           setBlueRoomPlayers(bluePlayers);
-        } catch (error) {
-          console.error('[GamePage] Failed to fetch room players:', error);
+        } catch {
+          // Error handled silently
         }
         return;
       }
 
       // If not in localStorage, fetch from API
       try {
-        console.log('[GamePage] Fetching initial role data for:', roomCode, currentPlayerId);
         const roomData = await getRoom(roomCode);
-        console.log('[GamePage] Initial room data received:', roomData);
 
         // Check if game has started
         if (roomData.status !== 'IN_PROGRESS') {
-          console.log('[GamePage] Game not started yet, redirecting to lobby');
           navigate(`/lobby/${roomCode}`);
           return;
         }
 
         const currentPlayer = roomData.players.find((p: Player) => p.id === currentPlayerId);
-        console.log('[GamePage] Current player found:', currentPlayer);
 
         if (currentPlayer?.role) {
-          console.log(
-            '[GamePage] Setting initial role:',
-            currentPlayer.role,
-            currentPlayer.team,
-            currentPlayer.currentRoom
-          );
           setRole(currentPlayer.role);
           setTeam(currentPlayer.team ?? null);
           setCurrentRoom(currentPlayer.currentRoom ?? null);
@@ -110,19 +97,11 @@ export function GamePage() {
           // Set room players
           const redPlayers = roomData.players.filter((p: Player) => p.currentRoom === 'RED_ROOM');
           const bluePlayers = roomData.players.filter((p: Player) => p.currentRoom === 'BLUE_ROOM');
-          console.log(
-            '[GamePage] Red room players:',
-            redPlayers.length,
-            'Blue room players:',
-            bluePlayers.length
-          );
           setRedRoomPlayers(redPlayers);
           setBlueRoomPlayers(bluePlayers);
-        } else {
-          console.error('[GamePage] Player has no role assigned');
         }
-      } catch (error) {
-        console.error('[GamePage] Failed to fetch initial role data:', error);
+      } catch {
+        // Error handled silently
       }
     };
 
@@ -137,8 +116,7 @@ export function GamePage() {
     try {
       await resetGame(roomCode);
       // Navigation will happen via GAME_RESET WebSocket message
-    } catch (error) {
-      console.error('Failed to reset game:', error);
+    } catch {
       alert('게임 초기화에 실패했습니다.');
       setIsResetting(false);
     }
@@ -149,7 +127,6 @@ export function GamePage() {
     if (!lastMessage) return;
 
     const message = lastMessage as WSMessage;
-    console.log('[GamePage] Received WebSocket message:', message.type, message);
 
     switch (message.type) {
       case 'ROLE_ASSIGNED': {
@@ -160,31 +137,19 @@ export function GamePage() {
         break;
       }
       case 'GAME_STARTED': {
-        console.log('[GamePage] GAME_STARTED received, currentPlayerId:', currentPlayerId);
         // Fetch room data to get player role
         const fetchRoleData = async () => {
           if (!roomCode) {
-            console.error('[GamePage] No roomCode available');
             return;
           }
           if (!currentPlayerId) {
-            console.error('[GamePage] No currentPlayerId available');
             return;
           }
 
           try {
-            console.log('[GamePage] Fetching room data for:', roomCode);
             const roomData = await getRoom(roomCode);
-            console.log('[GamePage] Room data received:', roomData);
             const currentPlayer = roomData.players.find((p: Player) => p.id === currentPlayerId);
-            console.log('[GamePage] Current player:', currentPlayer);
             if (currentPlayer?.role) {
-              console.log(
-                '[GamePage] Setting role:',
-                currentPlayer.role,
-                currentPlayer.team,
-                currentPlayer.currentRoom
-              );
               setRole(currentPlayer.role);
               setTeam(currentPlayer.team ?? null);
               setCurrentRoom(currentPlayer.currentRoom ?? null);
@@ -200,19 +165,11 @@ export function GamePage() {
               const bluePlayers = roomData.players.filter(
                 (p: Player) => p.currentRoom === 'BLUE_ROOM'
               );
-              console.log(
-                '[GamePage] Red room players:',
-                redPlayers.length,
-                'Blue room players:',
-                bluePlayers.length
-              );
               setRedRoomPlayers(redPlayers);
               setBlueRoomPlayers(bluePlayers);
-            } else {
-              console.error('[GamePage] Player has no role assigned');
             }
-          } catch (error) {
-            console.error('[GamePage] Failed to fetch role data:', error);
+          } catch {
+            // Error handled silently
           }
         };
         fetchRoleData();

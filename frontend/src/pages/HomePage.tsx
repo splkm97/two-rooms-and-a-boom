@@ -1,45 +1,17 @@
 // T056: Create HomePage with "방 만들기" and "방 참가" buttons
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createRoom, APIError } from '../services/api';
 import { Layout } from '../components/common/Layout';
 import { RoomList } from '../components/room/RoomList';
-import { RoomVisibilityToggle } from '../components/room/RoomVisibilityToggle';
-import { RoleConfigSelector } from '../components/role/RoleConfigSelector';
 
 export function HomePage() {
   const navigate = useNavigate();
-  const [isCreating, setIsCreating] = useState(false);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [isPublic, setIsPublic] = useState(true);
-  const [roleConfigId, setRoleConfigId] = useState('standard');
   const [roomCode, setRoomCode] = useState('');
   const [error, setError] = useState('');
 
-  const handleCreateRoom = async () => {
-    setIsCreating(true);
-    setError('');
-    try {
-      const room = await createRoom(10, isPublic, roleConfigId); // Default 10 players
-      navigate(`/room/${room.code}?view=lobby`);
-    } catch (err) {
-      // T105, T106: Use user-friendly Korean error message
-      setError(err instanceof APIError ? err.userMessage : '방 생성에 실패했습니다');
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  const handleShowCreateDialog = () => {
-    setShowCreateDialog(true);
-    setError('');
-  };
-
-  const handleCancelCreate = () => {
-    setShowCreateDialog(false);
-    setIsPublic(true);
-    setRoleConfigId('standard');
-    setError('');
+  const handleCreateRoom = () => {
+    // Navigate to role config page
+    navigate('/config');
   };
 
   const handleJoinRoom = () => {
@@ -104,7 +76,7 @@ export function HomePage() {
           }}
         >
           <button
-            onClick={handleShowCreateDialog}
+            onClick={handleCreateRoom}
             style={{
               padding: 'clamp(0.8rem, 2vw, 1rem) clamp(1.5rem, 4vw, 2rem)',
               fontSize: 'clamp(1rem, 3vw, 1.2rem)',
@@ -121,101 +93,6 @@ export function HomePage() {
             방 만들기
           </button>
         </div>
-
-        {showCreateDialog && (
-          <div
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '1rem',
-              zIndex: 1000,
-            }}
-            onClick={handleCancelCreate}
-          >
-            <div
-              style={{
-                backgroundColor: 'var(--bg-card)',
-                borderRadius: '12px',
-                padding: 'clamp(1.5rem, 4vw, 2rem)',
-                maxWidth: '500px',
-                width: '100%',
-                maxHeight: '90vh',
-                overflowY: 'auto',
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h2
-                style={{
-                  margin: '0 0 1.5rem',
-                  fontSize: 'clamp(1.25rem, 3vw, 1.5rem)',
-                  color: 'var(--text-primary)',
-                }}
-              >
-                방 만들기
-              </h2>
-
-              <RoleConfigSelector value={roleConfigId} onChange={setRoleConfigId} />
-
-              <div style={{ marginTop: '1rem' }}>
-                <RoomVisibilityToggle value={isPublic} onChange={setIsPublic} />
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '0.75rem',
-                  marginTop: '1.5rem',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <button
-                  onClick={handleCreateRoom}
-                  disabled={isCreating}
-                  style={{
-                    flex: 1,
-                    minWidth: '140px',
-                    padding: 'clamp(0.75rem, 2vw, 1rem)',
-                    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-                    backgroundColor: isCreating ? '#6c757d' : '#007bff',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: isCreating ? 'not-allowed' : 'pointer',
-                    opacity: isCreating ? 0.6 : 1,
-                    minHeight: '44px',
-                  }}
-                >
-                  {isCreating ? '생성 중...' : '방 만들기'}
-                </button>
-                <button
-                  onClick={handleCancelCreate}
-                  disabled={isCreating}
-                  style={{
-                    flex: 1,
-                    minWidth: '140px',
-                    padding: 'clamp(0.75rem, 2vw, 1rem)',
-                    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-                    backgroundColor: '#6c757d',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: isCreating ? 'not-allowed' : 'pointer',
-                    minHeight: '44px',
-                  }}
-                >
-                  취소
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         <div style={{ marginBottom: 'clamp(2rem, 5vw, 3rem)' }}>
           <RoomList onJoin={handleJoinFromList} status="WAITING" />

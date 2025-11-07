@@ -146,7 +146,6 @@ export function RoomPage() {
 
         setLoading(false);
       } catch (err) {
-        console.error('Failed to join room:', err);
         setError(err instanceof APIError ? err.userMessage : '방 입장에 실패했습니다');
         setLoading(false);
       } finally {
@@ -161,8 +160,6 @@ export function RoomPage() {
   // Handle WebSocket messages
   useEffect(() => {
     if (!lastMessage) return;
-
-    console.log('[RoomPage] Received WebSocket message:', lastMessage.type, lastMessage.payload);
 
     try {
       switch (lastMessage.type) {
@@ -233,7 +230,6 @@ export function RoomPage() {
         }
 
         case 'GAME_STARTED': {
-          console.log('[RoomPage] GAME_STARTED received, switching to game view');
           // Reset loading state
           setIsStarting(false);
           // Switch to game view
@@ -244,14 +240,11 @@ export function RoomPage() {
         case 'ROLE_ASSIGNED': {
           // Prevent duplicate processing
           if (roleAssignedProcessedRef.current) {
-            console.log('[RoomPage] ROLE_ASSIGNED already processed, ignoring duplicate');
             break;
           }
           roleAssignedProcessedRef.current = true;
 
           const payload = lastMessage.payload as RoleAssignedPayload;
-          console.log('[RoomPage] ROLE_ASSIGNED received, switching to game view');
-          console.log('[RoomPage] Role payload:', payload);
 
           // Reset loading state first
           setIsStarting(false);
@@ -263,15 +256,9 @@ export function RoomPage() {
 
           // Save role data to localStorage as backup
           if (roomCode) {
-            console.log('[RoomPage] Saving to localStorage with roomCode:', roomCode);
             localStorage.setItem(`role_${roomCode}`, JSON.stringify(payload.role));
             localStorage.setItem(`team_${roomCode}`, payload.team);
             localStorage.setItem(`currentRoom_${roomCode}`, payload.currentRoom);
-            console.log('[RoomPage] Saved to localStorage. Verifying:', {
-              role: localStorage.getItem(`role_${roomCode}`),
-              team: localStorage.getItem(`team_${roomCode}`),
-              currentRoom: localStorage.getItem(`currentRoom_${roomCode}`),
-            });
           }
 
           // Switch to game view in the next tick after state updates
@@ -309,7 +296,6 @@ export function RoomPage() {
 
         case 'ROOM_CLOSED': {
           const { reason } = lastMessage.payload as { reason?: string };
-          console.log('[RoomPage] ROOM_CLOSED received:', reason);
           // Clear localStorage for this room
           if (roomCode) {
             localStorage.removeItem(`playerId_${roomCode}`);
@@ -321,8 +307,8 @@ export function RoomPage() {
           break;
         }
       }
-    } catch (err) {
-      console.error('Failed to handle WebSocket message:', err);
+    } catch {
+      // Error handling
     }
   }, [lastMessage, roomCode, setSearchParams, navigate]);
 
@@ -346,8 +332,8 @@ export function RoomPage() {
     if (currentRoomCode && currentPlayerId) {
       try {
         await leaveRoom(currentRoomCode, currentPlayerId);
-      } catch (err) {
-        console.error('Failed to leave room:', err);
+      } catch {
+        // Error handled silently
       }
     }
   };
@@ -365,7 +351,6 @@ export function RoomPage() {
       await startGame(roomCode);
       // Navigation will happen automatically via GAME_STARTED WebSocket message
     } catch (err) {
-      console.error('Failed to start game:', err);
       alert(err instanceof APIError ? err.userMessage : '게임 시작에 실패했습니다');
       setIsStarting(false);
     }
@@ -378,8 +363,7 @@ export function RoomPage() {
     try {
       await resetGame(roomCode);
       // Navigation will happen via GAME_RESET WebSocket message
-    } catch (error) {
-      console.error('Failed to reset game:', error);
+    } catch {
       alert('게임 초기화에 실패했습니다.');
       setIsResetting(false);
     }
@@ -692,6 +676,7 @@ export function RoomPage() {
       {/* Role list sidebar */}
       <RoleListSidebar
         roleConfigId={room?.roleConfigId}
+        selectedRoles={room?.selectedRoles}
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
       />

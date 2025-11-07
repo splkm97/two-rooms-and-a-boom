@@ -26,9 +26,10 @@ func NewRoomHandler(roomService *services.RoomService, roleLoader *config.RoleCo
 
 // CreateRoomRequest represents the request body for creating a room
 type CreateRoomRequest struct {
-	MaxPlayers   int    `json:"maxPlayers" binding:"required,min=6,max=30"`
-	IsPublic     *bool  `json:"isPublic"`     // Optional, defaults to true if not provided
-	RoleConfigID string `json:"roleConfigId"` // Optional, defaults to "standard" if not provided
+	MaxPlayers    int            `json:"maxPlayers" binding:"required,min=6,max=30"`
+	IsPublic      *bool          `json:"isPublic"`      // Optional, defaults to true if not provided
+	RoleConfigID  string         `json:"roleConfigId"`  // Optional, defaults to "standard" if not provided
+	SelectedRoles map[string]int `json:"selectedRoles"` // Optional, selected role IDs and their counts
 }
 
 // T038: Create POST /api/v1/rooms handler
@@ -65,7 +66,7 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 		}
 	}
 
-	room, err := h.roomService.CreateRoom(req.MaxPlayers, isPublic, roleConfigID)
+	room, err := h.roomService.CreateRoom(req.MaxPlayers, isPublic, roleConfigID, req.SelectedRoles)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"code":    "CREATE_ROOM_FAILED",

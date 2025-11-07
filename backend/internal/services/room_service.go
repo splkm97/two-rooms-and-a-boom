@@ -36,7 +36,7 @@ func NewRoomService(roomStore *store.RoomStore) *RoomService {
 }
 
 // T035: Implement RoomService.CreateRoom
-func (s *RoomService) CreateRoom(maxPlayers int, isPublic bool, roleConfigID string) (*models.Room, error) {
+func (s *RoomService) CreateRoom(maxPlayers int, isPublic bool, roleConfigID string, selectedRoles map[string]int) (*models.Room, error) {
 	// Validate maxPlayers range (6-30)
 	if maxPlayers < 6 || maxPlayers > 30 {
 		return nil, errors.New("maxPlayers must be between 6 and 30")
@@ -67,14 +67,15 @@ func (s *RoomService) CreateRoom(maxPlayers int, isPublic bool, roleConfigID str
 	// Create room
 	now := time.Now()
 	room := &models.Room{
-		Code:         roomCode,
-		Status:       models.RoomStatusWaiting,
-		Players:      []*models.Player{},
-		MaxPlayers:   maxPlayers,
-		IsPublic:     isPublic,
-		RoleConfigID: roleConfigID,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		Code:          roomCode,
+		Status:        models.RoomStatusWaiting,
+		Players:       []*models.Player{},
+		MaxPlayers:    maxPlayers,
+		IsPublic:      isPublic,
+		RoleConfigID:  roleConfigID,
+		SelectedRoles: selectedRoles,
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
 
 	// Store room
@@ -84,7 +85,7 @@ func (s *RoomService) CreateRoom(maxPlayers int, isPublic bool, roleConfigID str
 	}
 
 	// T103: Log critical operation
-	log.Printf("[INFO] Room created: code=%s maxPlayers=%d isPublic=%v roleConfig=%s", room.Code, room.MaxPlayers, room.IsPublic, room.RoleConfigID)
+	log.Printf("[INFO] Room created: code=%s maxPlayers=%d isPublic=%v roleConfig=%s selectedRolesCount=%d", room.Code, room.MaxPlayers, room.IsPublic, room.RoleConfigID, len(room.SelectedRoles))
 
 	return room, nil
 }

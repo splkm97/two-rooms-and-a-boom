@@ -154,19 +154,42 @@ func (s *GameService) AssignRolesWithConfig(players []*models.Player, configID s
 		return fmt.Errorf("failed to get role config: %w", err)
 	}
 
-	// Separate players by team
+	totalPlayers := len(players)
+
+	// Calculate how many Grey team roles to assign
+	greyRoleCount := 0
+	for _, roleDef := range roleConfig.Roles {
+		if roleDef.Team == config.TeamGrey && roleDef.MinPlayers <= totalPlayers {
+			count := roleDef.Count.GetCount(totalPlayers)
+			greyRoleCount += count
+		}
+	}
+
+	// Separate players by team, reserving some for Grey team
 	var redTeam []*models.Player
 	var blueTeam []*models.Player
+	var greyPool []*models.Player
 
-	for _, player := range players {
-		if player.Team == models.TeamRed {
+	// Shuffle players for grey team selection
+	rand.Seed(time.Now().UnixNano())
+	shuffled := make([]*models.Player, len(players))
+	copy(shuffled, players)
+	rand.Shuffle(len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	})
+
+	// Assign some players to grey pool (they don't have RED/BLUE team yet)
+	for i, player := range shuffled {
+		if i < greyRoleCount {
+			// Mark for Grey team
+			player.Team = models.TeamGrey
+			greyPool = append(greyPool, player)
+		} else if player.Team == models.TeamRed {
 			redTeam = append(redTeam, player)
 		} else if player.Team == models.TeamBlue {
 			blueTeam = append(blueTeam, player)
 		}
 	}
-
-	totalPlayers := len(players)
 
 	// Assign RED team roles
 	if err := s.assignTeamRoles(redTeam, config.TeamRed, totalPlayers, roleConfig); err != nil {
@@ -176,6 +199,11 @@ func (s *GameService) AssignRolesWithConfig(players []*models.Player, configID s
 	// Assign BLUE team roles
 	if err := s.assignTeamRoles(blueTeam, config.TeamBlue, totalPlayers, roleConfig); err != nil {
 		return fmt.Errorf("failed to assign BLUE team roles: %w", err)
+	}
+
+	// Assign GREY team roles
+	if err := s.assignTeamRoles(greyPool, config.TeamGrey, totalPlayers, roleConfig); err != nil {
+		return fmt.Errorf("failed to assign GREY team roles: %w", err)
 	}
 
 	return nil
@@ -207,8 +235,8 @@ func (s *GameService) assignTeamRoles(team []*models.Player, teamColor config.Te
 	for _, roleDef := range applicableRoles {
 		count := roleDef.Count.GetCount(totalPlayers)
 		for i := 0; i < count && playerIndex < len(team); i++ {
-			// Map role definition ID to models.Role
-			role := mapRoleIDToModel(roleDef.ID)
+			// Create role from config definition
+			role := createRoleFromConfig(roleDef)
 			team[playerIndex].Role = &role
 			playerIndex++
 		}
@@ -217,7 +245,39 @@ func (s *GameService) assignTeamRoles(team []*models.Player, teamColor config.Te
 	return nil
 }
 
-// mapRoleIDToModel maps a role definition ID to a models.Role
+// createRoleFromConfig creates a models.Role from a config.RoleDefinition
+func createRoleFromConfig(roleDef config.RoleDefinition) models.Role {
+	// Determine if role is a spy (based on type)
+	isSpy := roleDef.Type == config.RoleTypeSpy
+
+	// Determine if role is a leader (based on type)
+	isLeader := roleDef.Type == config.RoleTypeLeader
+
+	// Convert team color from config to models
+	var team models.TeamColor
+	switch roleDef.Team {
+	case config.TeamRed:
+		team = models.TeamRed
+	case config.TeamBlue:
+		team = models.TeamBlue
+	case config.TeamGrey:
+		team = models.TeamGrey
+	}
+
+	// Create Role from config
+	return models.Role{
+		ID:            roleDef.ID,
+		Name:          roleDef.Name,
+		NameKo:        roleDef.NameKo,
+		Description:   roleDef.Description,
+		DescriptionKo: roleDef.DescriptionKo,
+		Team:          team,
+		IsSpy:         isSpy,
+		IsLeader:      isLeader,
+	}
+}
+
+// mapRoleIDToModel maps a role definition ID to a models.Role (legacy, kept for backward compatibility)
 func mapRoleIDToModel(roleID string) models.Role {
 	// Map configuration role IDs to existing models.Role constants
 	switch roleID {
@@ -229,9 +289,9 @@ func mapRoleIDToModel(roleID string) models.Role {
 		return models.RoleBlueSpy
 	case "RED_SPY":
 		return models.RoleRedSpy
-	case "BLUE_OPERATIVE":
+	case "BLUE_OPERATIVE", "BLUE_TEAM":
 		return models.RoleBlueOperative
-	case "RED_OPERATIVE":
+	case "RED_OPERATIVE", "RED_TEAM":
 		return models.RoleRedOperative
 	default:
 		// For custom roles not in models, create a new Role instance

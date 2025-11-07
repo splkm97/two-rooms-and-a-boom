@@ -4,6 +4,7 @@ import type { RoleConfig, RoleDefinition } from '../../types/roleConfig';
 
 interface RoleListSidebarProps {
   roleConfigId?: string;
+  selectedRoles?: Record<string, number>; // Selected role IDs with their counts
   isOpen?: boolean;
   onToggle?: () => void;
 }
@@ -48,7 +49,7 @@ function formatRoleCount(count: number | Record<string, number>): string {
   return '가변';
 }
 
-export function RoleListSidebar({ roleConfigId = 'standard', isOpen = false, onToggle }: RoleListSidebarProps) {
+export function RoleListSidebar({ roleConfigId = 'standard', selectedRoles, isOpen = false, onToggle }: RoleListSidebarProps) {
   const [roleConfig, setRoleConfig] = useState<RoleConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -74,14 +75,16 @@ export function RoleListSidebar({ roleConfigId = 'standard', isOpen = false, onT
     }
   };
 
-  // Group roles by team for better organization
-  const groupedRoles = roleConfig?.roles.reduce((acc, role) => {
-    if (!acc[role.team]) {
-      acc[role.team] = [];
-    }
-    acc[role.team].push(role);
-    return acc;
-  }, {} as Record<string, RoleDefinition[]>);
+  // Filter roles to show only selected ones, and group by team
+  const groupedRoles = roleConfig?.roles
+    .filter(role => selectedRoles && selectedRoles[role.id] !== undefined)
+    .reduce((acc, role) => {
+      if (!acc[role.team]) {
+        acc[role.team] = [];
+      }
+      acc[role.team].push(role);
+      return acc;
+    }, {} as Record<string, RoleDefinition[]>);
 
   return (
     <>
@@ -349,7 +352,7 @@ export function RoleListSidebar({ roleConfigId = 'standard', isOpen = false, onT
                                     borderRadius: '12px',
                                   }}
                                 >
-                                  {formatRoleCount(role.count)}
+                                  {selectedRoles && selectedRoles[role.id] ? `${selectedRoles[role.id]}명` : formatRoleCount(role.count)}
                                 </span>
                               </div>
 

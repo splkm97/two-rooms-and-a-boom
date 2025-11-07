@@ -7,7 +7,9 @@ export type RoomStatus = 'WAITING' | 'IN_PROGRESS' | 'COMPLETED';
 export interface Role {
   id: string;
   name: string;
+  nameKo?: string;
   description: string;
+  descriptionKo?: string;
   team: TeamColor;
   isSpy: boolean;
   isLeader: boolean;
@@ -44,6 +46,7 @@ export interface Room {
   players: Player[];
   maxPlayers: number;
   roleConfigId?: string;
+  selectedRoles?: Record<string, number>;
   gameSession?: GameSession;
   createdAt: string;
   updatedAt: string;

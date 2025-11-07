@@ -37,7 +37,7 @@ export function RoleCard({ role, team, currentRoom }: RoleCardProps) {
             fontWeight: 'bold',
           }}
         >
-          {role.name}
+          {role.nameKo || role.name}
         </h3>
         <p style={{ color: teamColor, fontWeight: 'bold', margin: '0.5rem 0', fontSize: '1.1rem' }}>
           {displayTeam === 'RED' ? '레드 팀' : '블루 팀'}
@@ -53,7 +53,7 @@ export function RoleCard({ role, team, currentRoom }: RoleCardProps) {
 
       <div style={{ marginBottom: '1rem' }}>
         <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1rem', lineHeight: '1.5' }}>
-          {role.description}
+          {role.descriptionKo || role.description}
         </p>
       </div>
 

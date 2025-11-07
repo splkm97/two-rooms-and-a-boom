@@ -97,6 +97,7 @@ export interface CreateRoomResponse {
   maxPlayers: number;
   isPublic?: boolean;
   roleConfigId?: string;
+  selectedRoles?: Record<string, number>;
   createdAt: string;
   updatedAt: string;
 }
@@ -104,12 +105,14 @@ export interface CreateRoomResponse {
 export async function createRoom(
   maxPlayers: number,
   isPublic: boolean = true,
-  roleConfigId: string = 'standard'
+  roleConfigId: string = 'standard',
+  selectedRoles?: Record<string, number>
 ): Promise<CreateRoomResponse> {
   return api.post<CreateRoomResponse>('/api/v1/rooms', {
     maxPlayers,
     isPublic,
     roleConfigId,
+    selectedRoles,
   });
 }
 
@@ -121,6 +124,7 @@ export interface GetRoomResponse {
   maxPlayers: number;
   isPublic?: boolean;
   roleConfigId?: string;
+  selectedRoles?: Record<string, number>;
   gameSession?: {
     id: string;
     roomCode: string;

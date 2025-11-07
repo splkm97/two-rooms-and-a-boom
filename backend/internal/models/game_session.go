@@ -15,12 +15,14 @@ type GameSession struct {
 
 // Role represents a player's assigned role
 type Role struct {
-	ID          string    `json:"id"`          // Role identifier
-	Name        string    `json:"name"`        // Korean display name
-	Description string    `json:"description"` // Role description
-	Team        TeamColor `json:"team"`        // Team affiliation
-	IsSpy       bool      `json:"isSpy"`       // Spy flag
-	IsLeader    bool      `json:"isLeader"`    // Leader flag (President/Bomber)
+	ID            string    `json:"id"`                      // Role identifier
+	Name          string    `json:"name"`                    // English display name
+	NameKo        string    `json:"nameKo,omitempty"`        // Korean display name
+	Description   string    `json:"description"`             // Role description (English)
+	DescriptionKo string    `json:"descriptionKo,omitempty"` // Role description (Korean)
+	Team          TeamColor `json:"team"`                    // Team affiliation
+	IsSpy         bool      `json:"isSpy"`                   // Spy flag
+	IsLeader      bool      `json:"isLeader"`                // Leader flag (President/Bomber)
 }
 
 // Predefined roles

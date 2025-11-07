@@ -8,6 +8,7 @@ type TeamColor string
 const (
 	TeamRed  TeamColor = "RED"
 	TeamBlue TeamColor = "BLUE"
+	TeamGrey TeamColor = "GREY"
 )
 
 // RoomColor represents the physical room assignment

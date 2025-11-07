@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import './App.css';
 import { HomePage } from './pages/HomePage';
 import { RoomPage } from './pages/RoomPage';
+import { RoleConfigPage } from './pages/RoleConfigPage';
 
 // T107: Browser compatibility check component
 function BrowserCompatibilityCheck({ children }: { children: React.ReactNode }) {
@@ -50,6 +51,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/config" element={<RoleConfigPage />} />
           {/* Unified room route with query parameter for view switching (lobby|game|reveal) */}
           <Route path="/room/:roomCode" element={<RoomPage />} />
 
