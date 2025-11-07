@@ -16,19 +16,19 @@ spec:
     spec:
       containers:
       - name: two-rooms-boom
-        image: "splkm97/2r1b:0.2"
+        image: "splkm97/2r1b:0.3"
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
           name: http
           protocol: TCP
-        env:
-        - name: PORT
-          value: "8080"
-        - name: GIN_MODE
-          value: "release"
-        - name: FRONTEND_URL
-          value: "http://localhost"  # Update this for production
+        envFrom:
+        - configMapRef:
+            name: two-rooms-boom-config
+        volumeMounts:
+        - name: role-configs
+          mountPath: /etc/role-configs
+          readOnly: true
         resources:
           requests:
             memory: "128Mi"
@@ -52,4 +52,8 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
+      volumes:
+      - name: role-configs
+        configMap:
+          name: role-configs
       restartPolicy: Always

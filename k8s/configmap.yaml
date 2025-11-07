@@ -7,3 +7,4 @@ data:
   GIN_MODE: "release"
   # Update FRONTEND_URL for your production domain
   FRONTEND_URL: "https://your-domain.com"
+  ROLE_CONFIG_DIR: "/etc/role-configs"
