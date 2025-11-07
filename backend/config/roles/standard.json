@@ -2,9 +2,9 @@
   "id": "standard",
   "name": "Standard Game",
   "nameKo": "기본 게임",
-  "description": "Standard Two Rooms and a Boom roles matching the original game behavior",
-  "descriptionKo": "투 룸즈 앤 어 붐의 기본 역할",
-  "version": "1.0.0",
+  "description": "Standard Two Rooms and a Boom roles matching the official game",
+  "descriptionKo": "공식 투 룸즈 앤 어 붐의 기본 역할 구성",
+  "version": "1.1.0",
   "roles": [
     {
       "id": "PRESIDENT",
@@ -12,8 +12,8 @@
       "nameKo": "대통령",
       "team": "BLUE",
       "type": "leader",
-      "description": "Blue team must protect the President",
-      "descriptionKo": "블루 팀은 대통령을 보호해야 합니다",
+      "description": "Primary Blue Team character. Blue Team wins if President does not gain 'dead' condition",
+      "descriptionKo": "블루 팀의 주요 인물. 대통령이 '사망' 상태를 얻지 않으면 블루 팀 승리",
       "count": 1,
       "minPlayers": 6,
       "priority": 1,
@@ -23,11 +23,11 @@
     {
       "id": "BOMBER",
       "name": "Bomber",
-      "nameKo": "폭탄범",
+      "nameKo": "폭파범",
       "team": "RED",
       "type": "leader",
-      "description": "Red team wins if Bomber meets President",
-      "descriptionKo": "폭탄범이 대통령을 만나면 레드 팀이 승리합니다",
+      "description": "Primary Red Team character. Everyone in same room at end gains 'dead' condition. Red Team wins if President gains 'dead' condition",
+      "descriptionKo": "레드 팀의 주요 인물. 게임 종료 시 같은 방의 모든 사람이 '사망' 상태를 얻음. 대통령이 '사망'하면 레드 팀 승리",
       "count": 1,
       "minPlayers": 6,
       "priority": 1,
@@ -40,8 +40,8 @@
       "nameKo": "블루 스파이",
       "team": "BLUE",
       "type": "spy",
-      "description": "Knows Blue affiliation but appears neutral",
-      "descriptionKo": "블루 소속을 알지만 중립으로 보입니다",
+      "description": "Blue Team member whose card appears as Red Team during color sharing. True identity revealed during full card sharing",
+      "descriptionKo": "블루 팀 소속이지만 정보 교환 시 레드 팀으로 보임. 카드 전체 교환 시 정체가 드러남",
       "count": {
         "6-9": 1,
         "10+": 2
@@ -57,8 +57,8 @@
       "nameKo": "레드 스파이",
       "team": "RED",
       "type": "spy",
-      "description": "Knows Red affiliation but appears neutral",
-      "descriptionKo": "레드 소속을 알지만 중립으로 보입니다",
+      "description": "Red Team member whose card appears as Blue Team during color sharing. True identity revealed during full card sharing",
+      "descriptionKo": "레드 팀 소속이지만 정보 교환 시 블루 팀으로 보임. 카드 전체 교환 시 정체가 드러남",
       "count": {
         "6-9": 1,
         "10+": 2
@@ -69,32 +69,32 @@
       "icon": "🕵️"
     },
     {
-      "id": "BLUE_OPERATIVE",
-      "name": "Blue Operative",
-      "nameKo": "블루 요원",
+      "id": "BLUE_TEAM",
+      "name": "Blue Team",
+      "nameKo": "블루 팀원",
       "team": "BLUE",
-      "type": "operative",
-      "description": "Standard Blue team member",
-      "descriptionKo": "블루 팀의 일반 요원입니다",
+      "type": "standard",
+      "description": "Standard Blue Team member. Wins if President does not gain 'dead' condition",
+      "descriptionKo": "블루 팀의 일반 요원. 대통령이 '사망'하지 않으면 승리",
       "count": 99,
       "minPlayers": 6,
       "priority": 99,
       "color": "#3399FF",
-      "icon": "👤"
+      "icon": "⭐"
     },
     {
-      "id": "RED_OPERATIVE",
-      "name": "Red Operative",
-      "nameKo": "레드 요원",
+      "id": "RED_TEAM",
+      "name": "Red Team",
+      "nameKo": "레드 팀원",
       "team": "RED",
-      "type": "operative",
-      "description": "Standard Red team member",
-      "descriptionKo": "레드 팀의 일반 요원입니다",
+      "type": "standard",
+      "description": "Standard Red Team member. Wins if President gains 'dead' condition",
+      "descriptionKo": "레드 팀의 일반 요원. 대통령이 '사망'하면 승리",
       "count": 99,
       "minPlayers": 6,
       "priority": 99,
       "color": "#FF3333",
-      "icon": "👤"
+      "icon": "💣"
     }
   ]
 }
