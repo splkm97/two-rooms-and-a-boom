@@ -1,0 +1,152 @@
+{
+  "id": "extended",
+  "name": "Extended Game",
+  "nameKo": "확장 게임",
+  "description": "Extended Two Rooms and a Boom with additional special roles",
+  "descriptionKo": "추가 특수 역할이 포함된 확장 게임",
+  "version": "1.0.0",
+  "roles": [
+    {
+      "id": "PRESIDENT",
+      "name": "President",
+      "nameKo": "대통령",
+      "team": "BLUE",
+      "type": "leader",
+      "description": "Blue team must protect the President",
+      "descriptionKo": "블루 팀은 대통령을 보호해야 합니다",
+      "count": 1,
+      "minPlayers": 6,
+      "priority": 1,
+      "color": "#0066CC",
+      "icon": "👔"
+    },
+    {
+      "id": "BOMBER",
+      "name": "Bomber",
+      "nameKo": "폭탄범",
+      "team": "RED",
+      "type": "leader",
+      "description": "Red team wins if Bomber meets President",
+      "descriptionKo": "폭탄범이 대통령을 만나면 레드 팀이 승리합니다",
+      "count": 1,
+      "minPlayers": 6,
+      "priority": 1,
+      "color": "#CC0000",
+      "icon": "💣"
+    },
+    {
+      "id": "BLUE_SPY",
+      "name": "Blue Spy",
+      "nameKo": "블루 스파이",
+      "team": "BLUE",
+      "type": "spy",
+      "description": "Knows Blue affiliation but appears neutral",
+      "descriptionKo": "블루 소속을 알지만 중립으로 보입니다",
+      "count": {
+        "6-9": 1,
+        "10-14": 2,
+        "15+": 3
+      },
+      "minPlayers": 6,
+      "priority": 2,
+      "color": "#6699FF",
+      "icon": "🕵️"
+    },
+    {
+      "id": "RED_SPY",
+      "name": "Red Spy",
+      "nameKo": "레드 스파이",
+      "team": "RED",
+      "type": "spy",
+      "description": "Knows Red affiliation but appears neutral",
+      "descriptionKo": "레드 소속을 알지만 중립으로 보입니다",
+      "count": {
+        "6-9": 1,
+        "10-14": 2,
+        "15+": 3
+      },
+      "minPlayers": 6,
+      "priority": 2,
+      "color": "#FF6666",
+      "icon": "🕵️"
+    },
+    {
+      "id": "DOCTOR",
+      "name": "Doctor",
+      "nameKo": "의사",
+      "team": "BLUE",
+      "type": "special",
+      "description": "Can heal the President if injured",
+      "descriptionKo": "부상당한 대통령을 치료할 수 있습니다",
+      "count": {
+        "10-14": 1,
+        "15+": 1
+      },
+      "minPlayers": 10,
+      "priority": 3,
+      "color": "#00CC99",
+      "icon": "⚕️"
+    },
+    {
+      "id": "ENGINEER",
+      "name": "Engineer",
+      "nameKo": "엔지니어",
+      "team": "RED",
+      "type": "special",
+      "description": "Can arm the bomb for the Bomber",
+      "descriptionKo": "폭탄범을 위해 폭탄을 무장시킬 수 있습니다",
+      "count": {
+        "10-14": 1,
+        "15+": 1
+      },
+      "minPlayers": 10,
+      "priority": 3,
+      "color": "#CC6600",
+      "icon": "🔧"
+    },
+    {
+      "id": "GAMBLER",
+      "name": "Gambler",
+      "nameKo": "도박꾼",
+      "team": "GREY",
+      "type": "grey",
+      "description": "Independent player who wins by correctly guessing the winning team",
+      "descriptionKo": "승리 팀을 정확히 맞춰야 승리하는 독립 플레이어",
+      "count": {
+        "12+": 1
+      },
+      "minPlayers": 12,
+      "priority": 4,
+      "color": "#9933CC",
+      "icon": "🎲"
+    },
+    {
+      "id": "BLUE_OPERATIVE",
+      "name": "Blue Operative",
+      "nameKo": "블루 요원",
+      "team": "BLUE",
+      "type": "operative",
+      "description": "Standard Blue team member",
+      "descriptionKo": "블루 팀의 일반 요원입니다",
+      "count": 99,
+      "minPlayers": 6,
+      "priority": 99,
+      "color": "#3399FF",
+      "icon": "👤"
+    },
+    {
+      "id": "RED_OPERATIVE",
+      "name": "Red Operative",
+      "nameKo": "레드 요원",
+      "team": "RED",
+      "type": "operative",
+      "description": "Standard Red team member",
+      "descriptionKo": "레드 팀의 일반 요원입니다",
+      "count": 99,
+      "minPlayers": 6,
+      "priority": 99,
+      "color": "#FF3333",
+      "icon": "👤"
+    }
+  ]
+}

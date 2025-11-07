@@ -19,7 +19,7 @@ export function LoadingSpinner({ size = 'medium', message }: LoadingSpinnerProps
         className="loading-spinner"
         style={{
           width: sizeMap[size],
-          height: sizeMap[size]
+          height: sizeMap[size],
         }}
       />
       {message && <p className="loading-message">{message}</p>}

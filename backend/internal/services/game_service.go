@@ -2,19 +2,23 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"math/rand"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kalee/two-rooms-and-a-boom/internal/config"
 	"github.com/kalee/two-rooms-and-a-boom/internal/models"
 	"github.com/kalee/two-rooms-and-a-boom/internal/store"
 )
 
 // GameService handles game logic operations
 type GameService struct {
-	roomStore *store.RoomStore
-	hub       Hub // Interface to allow mocking
+	roomStore  *store.RoomStore
+	hub        Hub // Interface to allow mocking
+	roleLoader *config.RoleConfigLoader
 }
 
 // Hub interface for WebSocket broadcasts
@@ -26,10 +30,11 @@ type Hub interface {
 }
 
 // NewGameService creates a new GameService instance
-func NewGameService(roomStore *store.RoomStore) *GameService {
+func NewGameService(roomStore *store.RoomStore, roleLoader *config.RoleConfigLoader) *GameService {
 	return &GameService{
-		roomStore: roomStore,
-		hub:       nil, // Will be set via SetHub
+		roomStore:  roomStore,
+		hub:        nil, // Will be set via SetHub
+		roleLoader: roleLoader,
 	}
 }
 
@@ -141,6 +146,101 @@ func AssignRoles(players []*models.Player) {
 	}
 }
 
+// AssignRolesWithConfig assigns roles using a role configuration
+func (s *GameService) AssignRolesWithConfig(players []*models.Player, configID string) error {
+	// Get configuration
+	roleConfig, err := s.roleLoader.Get(configID)
+	if err != nil {
+		return fmt.Errorf("failed to get role config: %w", err)
+	}
+
+	// Separate players by team
+	var redTeam []*models.Player
+	var blueTeam []*models.Player
+
+	for _, player := range players {
+		if player.Team == models.TeamRed {
+			redTeam = append(redTeam, player)
+		} else if player.Team == models.TeamBlue {
+			blueTeam = append(blueTeam, player)
+		}
+	}
+
+	totalPlayers := len(players)
+
+	// Assign RED team roles
+	if err := s.assignTeamRoles(redTeam, config.TeamRed, totalPlayers, roleConfig); err != nil {
+		return fmt.Errorf("failed to assign RED team roles: %w", err)
+	}
+
+	// Assign BLUE team roles
+	if err := s.assignTeamRoles(blueTeam, config.TeamBlue, totalPlayers, roleConfig); err != nil {
+		return fmt.Errorf("failed to assign BLUE team roles: %w", err)
+	}
+
+	return nil
+}
+
+// assignTeamRoles assigns roles to a team based on configuration
+func (s *GameService) assignTeamRoles(team []*models.Player, teamColor config.TeamColor, totalPlayers int, roleConfig *config.RoleConfig) error {
+	// Filter applicable roles for this team
+	var applicableRoles []config.RoleDefinition
+	for _, roleDef := range roleConfig.Roles {
+		if roleDef.Team == teamColor && roleDef.MinPlayers <= totalPlayers {
+			applicableRoles = append(applicableRoles, roleDef)
+		}
+	}
+
+	// Sort by priority (lower priority = assigned first)
+	sort.Slice(applicableRoles, func(i, j int) bool {
+		return applicableRoles[i].Priority < applicableRoles[j].Priority
+	})
+
+	// Shuffle team for randomization
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(team), func(i, j int) {
+		team[i], team[j] = team[j], team[i]
+	})
+
+	// Assign roles based on priority
+	playerIndex := 0
+	for _, roleDef := range applicableRoles {
+		count := roleDef.Count.GetCount(totalPlayers)
+		for i := 0; i < count && playerIndex < len(team); i++ {
+			// Map role definition ID to models.Role
+			role := mapRoleIDToModel(roleDef.ID)
+			team[playerIndex].Role = &role
+			playerIndex++
+		}
+	}
+
+	return nil
+}
+
+// mapRoleIDToModel maps a role definition ID to a models.Role
+func mapRoleIDToModel(roleID string) models.Role {
+	// Map configuration role IDs to existing models.Role constants
+	switch roleID {
+	case "PRESIDENT":
+		return models.RolePresident
+	case "BOMBER":
+		return models.RoleBomber
+	case "BLUE_SPY":
+		return models.RoleBlueSpy
+	case "RED_SPY":
+		return models.RoleRedSpy
+	case "BLUE_OPERATIVE":
+		return models.RoleBlueOperative
+	case "RED_OPERATIVE":
+		return models.RoleRedOperative
+	default:
+		// For custom roles not in models, create a new Role instance
+		// This will need to be enhanced when custom roles are fully supported
+		log.Printf("[WARN] Unknown role ID '%s', using default operative", roleID)
+		return models.RoleBlueOperative
+	}
+}
+
 // T071: Implement room assignment algorithm (AssignRooms - FR-013)
 // Assigns players to RED_ROOM and BLUE_ROOM with equal split
 // If odd number of players, one room gets +1 player
@@ -198,8 +298,25 @@ func (s *GameService) StartGame(roomCode string) (*models.GameSession, error) {
 	// Assign teams (FR-008)
 	AssignTeams(room.Players)
 
-	// Assign roles (FR-009, FR-010, FR-011)
-	AssignRoles(room.Players)
+	// Assign roles using configuration
+	// Use room's roleConfigId, default to "standard" if not set
+	roleConfigID := room.RoleConfigID
+	if roleConfigID == "" {
+		roleConfigID = "standard"
+	}
+
+	// Try config-driven assignment if loader is available
+	if s.roleLoader != nil {
+		if err := s.AssignRolesWithConfig(room.Players, roleConfigID); err != nil {
+			// Fall back to hardcoded assignment if config fails
+			log.Printf("[WARN] Config-driven role assignment failed: %v, falling back to hardcoded", err)
+			AssignRoles(room.Players)
+		}
+	} else {
+		// Fall back to hardcoded assignment if no loader
+		log.Printf("[WARN] No role loader available, using hardcoded role assignment")
+		AssignRoles(room.Players)
+	}
 
 	// Assign rooms (FR-013)
 	AssignRooms(room.Players)

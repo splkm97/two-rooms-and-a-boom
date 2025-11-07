@@ -75,7 +75,7 @@ export function useWebSocket(roomCode: string, playerId?: string) {
         try {
           // Handle multiple newline-separated JSON messages in one frame
           const data = event.data.toString().trim();
-          const messages = data.split('\n').filter(line => line.trim());
+          const messages = data.split('\n').filter((line) => line.trim());
 
           // Fallback: If we receive a message but onopen didn't fire, mark as connected
           if (!isConnectedRef.current && messages.length > 0) {
@@ -112,12 +112,14 @@ export function useWebSocket(roomCode: string, playerId?: string) {
         }
 
         // Handle specific close codes
-        if (event.code === 1008) { // Policy violation (e.g., room not found)
+        if (event.code === 1008) {
+          // Policy violation (e.g., room not found)
           setConnectionError('방을 찾을 수 없습니다.');
           return;
         }
 
-        if (event.code === 1003) { // Unsupported data
+        if (event.code === 1003) {
+          // Unsupported data
           setConnectionError('서버와의 연결이 지원되지 않습니다.');
           return;
         }
@@ -125,7 +127,9 @@ export function useWebSocket(roomCode: string, playerId?: string) {
         // Auto-reconnect after interval
         const newAttempts = reconnectAttempts + 1;
         setReconnectAttempts(newAttempts);
-        setConnectionError(`연결이 끊어졌습니다. 재연결 시도 중... (${newAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+        setConnectionError(
+          `연결이 끊어졌습니다. 재연결 시도 중... (${newAttempts}/${MAX_RECONNECT_ATTEMPTS})`
+        );
 
         if (reconnectTimeout.current) {
           clearTimeout(reconnectTimeout.current);

@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/kalee/two-rooms-and-a-boom/internal/config"
 	"github.com/kalee/two-rooms-and-a-boom/internal/handlers"
 	"github.com/kalee/two-rooms-and-a-boom/internal/middleware"
 	"github.com/kalee/two-rooms-and-a-boom/internal/services"
@@ -63,6 +64,17 @@ func main() {
 		c.Next()
 	})
 
+	// Initialize role configuration loader
+	roleConfigDir := os.Getenv("ROLE_CONFIG_DIR")
+	if roleConfigDir == "" {
+		roleConfigDir = "./backend/config/roles"
+	}
+	roleLoader := config.NewRoleConfigLoader(roleConfigDir)
+	if err := roleLoader.LoadAll(); err != nil {
+		log.Fatalf("[FATAL] Failed to load role configurations: %v", err)
+	}
+	log.Printf("[INFO] Loaded %d role configuration(s)", len(roleLoader.GetAll()))
+
 	// Initialize dependencies
 	roomStore := store.NewRoomStore()
 	hub := websocket.NewHub()
@@ -73,14 +85,15 @@ func main() {
 	// Initialize services
 	roomService := services.NewRoomService(roomStore)
 	playerService := services.NewPlayerService(roomStore, hub)
-	gameService := services.NewGameService(roomStore)
+	gameService := services.NewGameService(roomStore, roleLoader)
 	gameService.SetHub(hub)
 
 	// Initialize handlers
-	roomHandler := handlers.NewRoomHandler(roomService)
+	roomHandler := handlers.NewRoomHandler(roomService, roleLoader)
 	playerHandler := handlers.NewPlayerHandler(playerService)
 	gameHandler := handlers.NewGameHandler(gameService)
 	wsHandler := handlers.NewWebSocketHandler(hub, roomService, playerService)
+	roleConfigHandler := handlers.NewRoleConfigHandler(roleLoader)
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -94,6 +107,10 @@ func main() {
 	// T092: Wire US3 routes to Gin router
 	v1 := r.Group("/api/v1")
 	{
+		// Role configuration routes
+		v1.GET("/role-configs", roleConfigHandler.ListRoleConfigs)
+		v1.GET("/role-configs/:id", roleConfigHandler.GetRoleConfig)
+
 		// Room routes
 		v1.GET("/rooms", middleware.RoomListLimiter.Middleware(), roomHandler.ListRooms)
 		v1.POST("/rooms", middleware.RoomCreationLimiter.Middleware(), roomHandler.CreateRoom)

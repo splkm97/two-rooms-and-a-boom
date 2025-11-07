@@ -1,4 +1,4 @@
-import type { Player } from '../types/game.types';
+import type { Player } from '../../types/game.types';
 
 interface RoomPlayerListProps {
   players: Player[];
@@ -38,17 +38,24 @@ export function RoomPlayerList({ players, roomColor, currentPlayerId }: RoomPlay
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              border: player.id === currentPlayerId ? `2px solid ${roomBorderColor}` : '1px solid #e5e7eb',
+              border:
+                player.id === currentPlayerId
+                  ? `2px solid ${roomBorderColor}`
+                  : '1px solid #e5e7eb',
             }}
           >
-            <span style={{
-              fontSize: '1.1rem',
-              fontWeight: player.id === currentPlayerId ? 'bold' : '500',
-              color: '#1f2937'  // Dark gray for readability on white background
-            }}>
+            <span
+              style={{
+                fontSize: '1.1rem',
+                fontWeight: player.id === currentPlayerId ? 'bold' : '500',
+                color: '#1f2937', // Dark gray for readability on white background
+              }}
+            >
               {player.nickname}
               {player.id === currentPlayerId && (
-                <span style={{ marginLeft: '0.5rem', color: roomTextColor, fontWeight: 'bold' }}>(나)</span>
+                <span style={{ marginLeft: '0.5rem', color: roomTextColor, fontWeight: 'bold' }}>
+                  (나)
+                </span>
               )}
             </span>
             {player.isOwner && (

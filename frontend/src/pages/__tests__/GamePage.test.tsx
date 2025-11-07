@@ -13,7 +13,7 @@ vi.mock('../../services/api', () => ({
 
 // Mock useWebSocket hook
 const mockSendMessage = vi.fn();
-let mockLastMessage: any = null;
+let mockLastMessage: unknown = null;
 
 vi.mock('../../hooks/useWebSocket', () => ({
   useWebSocket: () => ({

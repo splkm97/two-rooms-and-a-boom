@@ -1,4 +1,4 @@
-import type { RoomListItem as RoomListItemType } from '../types/game.types';
+import type { RoomListItem as RoomListItemType } from '../../types/game.types';
 
 interface RoomListItemProps {
   room: RoomListItemType;
@@ -82,7 +82,14 @@ export function RoomListItem({ room, onJoin }: RoomListItemProps) {
         e.currentTarget.style.boxShadow = 'none';
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '0.5rem',
+        }}
+      >
         <div
           style={{
             fontFamily: 'monospace',
@@ -108,7 +115,14 @@ export function RoomListItem({ room, onJoin }: RoomListItemProps) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '0.5rem',
+        }}
+      >
         {room.hostNickname && (
           <div
             style={{

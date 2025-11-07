@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
-import { RoleCard } from '../RoleCard';
+import { RoleCard } from './RoleCard';
 import type { Role, TeamColor, RoomColor } from '../../types/game.types';
 
 describe('RoleCard', () => {
@@ -15,11 +15,7 @@ describe('RoleCard', () => {
 
   it('should render role name and description', () => {
     render(
-      <RoleCard
-        role={mockRole}
-        team={'BLUE' as TeamColor}
-        currentRoom={'BLUE_ROOM' as RoomColor}
-      />
+      <RoleCard role={mockRole} team={'BLUE' as TeamColor} currentRoom={'BLUE_ROOM' as RoomColor} />
     );
 
     expect(screen.getByText('당신의 역할')).toBeInTheDocument();
@@ -29,11 +25,7 @@ describe('RoleCard', () => {
 
   it('should display blue team color', () => {
     render(
-      <RoleCard
-        role={mockRole}
-        team={'BLUE' as TeamColor}
-        currentRoom={'BLUE_ROOM' as RoomColor}
-      />
+      <RoleCard role={mockRole} team={'BLUE' as TeamColor} currentRoom={'BLUE_ROOM' as RoomColor} />
     );
 
     expect(screen.getByText('블루 팀')).toBeInTheDocument();
@@ -50,11 +42,7 @@ describe('RoleCard', () => {
     };
 
     render(
-      <RoleCard
-        role={redRole}
-        team={'RED' as TeamColor}
-        currentRoom={'RED_ROOM' as RoomColor}
-      />
+      <RoleCard role={redRole} team={'RED' as TeamColor} currentRoom={'RED_ROOM' as RoomColor} />
     );
 
     expect(screen.getByText('레드 팀')).toBeInTheDocument();
@@ -62,11 +50,7 @@ describe('RoleCard', () => {
 
   it('should show leader badge when role is leader', () => {
     render(
-      <RoleCard
-        role={mockRole}
-        team={'BLUE' as TeamColor}
-        currentRoom={'BLUE_ROOM' as RoomColor}
-      />
+      <RoleCard role={mockRole} team={'BLUE' as TeamColor} currentRoom={'BLUE_ROOM' as RoomColor} />
     );
 
     expect(screen.getByText(/👑 리더/)).toBeInTheDocument();
@@ -104,11 +88,7 @@ describe('RoleCard', () => {
     };
 
     render(
-      <RoleCard
-        role={spyRole}
-        team={'RED' as TeamColor}
-        currentRoom={'BLUE_ROOM' as RoomColor}
-      />
+      <RoleCard role={spyRole} team={'RED' as TeamColor} currentRoom={'BLUE_ROOM' as RoomColor} />
     );
 
     expect(screen.getByText(/🕵️ 스파이/)).toBeInTheDocument();
@@ -116,11 +96,7 @@ describe('RoleCard', () => {
 
   it('should not show spy badge for non-spy', () => {
     render(
-      <RoleCard
-        role={mockRole}
-        team={'BLUE' as TeamColor}
-        currentRoom={'BLUE_ROOM' as RoomColor}
-      />
+      <RoleCard role={mockRole} team={'BLUE' as TeamColor} currentRoom={'BLUE_ROOM' as RoomColor} />
     );
 
     expect(screen.queryByText(/🕵️ 스파이/)).not.toBeInTheDocument();
@@ -128,11 +104,7 @@ describe('RoleCard', () => {
 
   it('should display current room location - blue room', () => {
     render(
-      <RoleCard
-        role={mockRole}
-        team={'BLUE' as TeamColor}
-        currentRoom={'BLUE_ROOM' as RoomColor}
-      />
+      <RoleCard role={mockRole} team={'BLUE' as TeamColor} currentRoom={'BLUE_ROOM' as RoomColor} />
     );
 
     expect(screen.getByText(/📍 현재 위치:/)).toBeInTheDocument();
@@ -141,11 +113,7 @@ describe('RoleCard', () => {
 
   it('should display current room location - red room', () => {
     render(
-      <RoleCard
-        role={mockRole}
-        team={'BLUE' as TeamColor}
-        currentRoom={'RED_ROOM' as RoomColor}
-      />
+      <RoleCard role={mockRole} team={'BLUE' as TeamColor} currentRoom={'RED_ROOM' as RoomColor} />
     );
 
     expect(screen.getByText(/📍 현재 위치:/)).toBeInTheDocument();

@@ -18,7 +18,7 @@ vi.mock('../../services/api', () => ({
 }));
 
 // Mock useWebSocket hook
-let mockLastMessage: any = null;
+let mockLastMessage: unknown = null;
 
 vi.mock('../../hooks/useWebSocket', () => ({
   useWebSocket: () => ({
@@ -93,7 +93,9 @@ describe('ResetButton (integrated in GamePage)', () => {
     renderGamePageAsOwner();
 
     expect(screen.getByText(/대기실로 돌아가기/)).toBeInTheDocument();
-    expect(screen.getByText(/게임을 종료하고 모든 플레이어를 대기실로 돌려보냅니다/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/게임을 종료하고 모든 플레이어를 대기실로 돌려보냅니다/)
+    ).toBeInTheDocument();
   });
 
   it('should not display reset button for non-owner', () => {

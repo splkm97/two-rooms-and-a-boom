@@ -25,8 +25,9 @@ export function NicknameEditor({ currentNickname, onUpdate }: NicknameEditorProp
     try {
       await onUpdate(nickname);
       setIsEditing(false);
-    } catch (err: any) {
-      setError(err.message || '닉네임 변경에 실패했습니다');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '닉네임 변경에 실패했습니다';
+      setError(errorMessage);
     } finally {
       setIsUpdating(false);
     }
@@ -50,7 +51,14 @@ export function NicknameEditor({ currentNickname, onUpdate }: NicknameEditorProp
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <label style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>
+            <label
+              style={{
+                fontSize: '0.9rem',
+                color: 'var(--text-secondary)',
+                display: 'block',
+                marginBottom: '0.25rem',
+              }}
+            >
               내 닉네임
             </label>
             <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>
@@ -84,7 +92,14 @@ export function NicknameEditor({ currentNickname, onUpdate }: NicknameEditorProp
         backgroundColor: 'var(--bg-card)',
       }}
     >
-      <label style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.5rem' }}>
+      <label
+        style={{
+          fontSize: '0.9rem',
+          color: 'var(--text-secondary)',
+          display: 'block',
+          marginBottom: '0.5rem',
+        }}
+      >
         새 닉네임 입력
       </label>
 
@@ -137,11 +152,7 @@ export function NicknameEditor({ currentNickname, onUpdate }: NicknameEditorProp
         </button>
       </div>
 
-      {error && (
-        <div style={{ fontSize: '0.9rem', color: '#dc2626' }}>
-          {error}
-        </div>
-      )}
+      {error && <div style={{ fontSize: '0.9rem', color: '#dc2626' }}>{error}</div>}
 
       <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
         {nickname.length}/20자

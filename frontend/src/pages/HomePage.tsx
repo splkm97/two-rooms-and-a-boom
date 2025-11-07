@@ -2,15 +2,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createRoom, APIError } from '../services/api';
-import { Layout } from '../components/Layout';
-import { RoomList } from '../components/RoomList';
-import { RoomVisibilityToggle } from '../components/RoomVisibilityToggle';
+import { Layout } from '../components/common/Layout';
+import { RoomList } from '../components/room/RoomList';
+import { RoomVisibilityToggle } from '../components/room/RoomVisibilityToggle';
+import { RoleConfigSelector } from '../components/role/RoleConfigSelector';
 
 export function HomePage() {
   const navigate = useNavigate();
   const [isCreating, setIsCreating] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [isPublic, setIsPublic] = useState(true);
+  const [roleConfigId, setRoleConfigId] = useState('standard');
   const [roomCode, setRoomCode] = useState('');
   const [error, setError] = useState('');
 
@@ -18,7 +20,7 @@ export function HomePage() {
     setIsCreating(true);
     setError('');
     try {
-      const room = await createRoom(10, isPublic); // Default 10 players
+      const room = await createRoom(10, isPublic, roleConfigId); // Default 10 players
       navigate(`/room/${room.code}?view=lobby`);
     } catch (err) {
       // T105, T106: Use user-friendly Korean error message
@@ -36,6 +38,7 @@ export function HomePage() {
   const handleCancelCreate = () => {
     setShowCreateDialog(false);
     setIsPublic(true);
+    setRoleConfigId('standard');
     setError('');
   };
 
@@ -53,20 +56,24 @@ export function HomePage() {
 
   return (
     <Layout>
-      <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto',
-        width: '100%',
-        padding: '0 1rem',
-        boxSizing: 'border-box',
-      }}>
-        <p style={{
-          marginBottom: 'clamp(1.5rem, 5vw, 2rem)',
-          color: '#666',
-          fontSize: 'clamp(1rem, 3vw, 1.2rem)',
-          marginTop: 'clamp(1rem, 3vw, 2rem)',
-          textAlign: 'center',
-        }}>
+      <div
+        style={{
+          maxWidth: '1200px',
+          margin: '0 auto',
+          width: '100%',
+          padding: '0 1rem',
+          boxSizing: 'border-box',
+        }}
+      >
+        <p
+          style={{
+            marginBottom: 'clamp(1.5rem, 5vw, 2rem)',
+            color: '#666',
+            fontSize: 'clamp(1rem, 3vw, 1.2rem)',
+            marginTop: 'clamp(1rem, 3vw, 2rem)',
+            textAlign: 'center',
+          }}
+        >
           역할 배분 시스템에 오신 것을 환영합니다
         </p>
 
@@ -87,13 +94,15 @@ export function HomePage() {
           </div>
         )}
 
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1rem',
-          alignItems: 'center',
-          marginBottom: 'clamp(2rem, 5vw, 3rem)',
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+            alignItems: 'center',
+            marginBottom: 'clamp(2rem, 5vw, 3rem)',
+          }}
+        >
           <button
             onClick={handleShowCreateDialog}
             style={{
@@ -152,7 +161,11 @@ export function HomePage() {
                 방 만들기
               </h2>
 
-              <RoomVisibilityToggle value={isPublic} onChange={setIsPublic} />
+              <RoleConfigSelector value={roleConfigId} onChange={setRoleConfigId} />
+
+              <div style={{ marginTop: '1rem' }}>
+                <RoomVisibilityToggle value={isPublic} onChange={setIsPublic} />
+              </div>
 
               <div
                 style={{
@@ -224,13 +237,15 @@ export function HomePage() {
           <div style={{ flex: 1, height: '1px', backgroundColor: '#ddd' }} />
         </div>
 
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.75rem',
-          maxWidth: '400px',
-          margin: '0 auto',
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem',
+            maxWidth: '400px',
+            margin: '0 auto',
+          }}
+        >
           <h3
             style={{
               margin: '0 0 0.5rem',

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { NicknameEditor } from '../NicknameEditor';
+import { NicknameEditor } from './NicknameEditor';
 
 describe('NicknameEditor', () => {
   it('should render current nickname in display mode', () => {

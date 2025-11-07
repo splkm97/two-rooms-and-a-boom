@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { RoomVisibilityToggle } from '../RoomVisibilityToggle';
+import { RoomVisibilityToggle } from './RoomVisibilityToggle';
 
 describe('RoomVisibilityToggle', () => {
   const mockOnChange = vi.fn();
@@ -59,12 +59,8 @@ describe('RoomVisibilityToggle', () => {
   it('displays descriptions for both options', () => {
     render(<RoomVisibilityToggle value={true} onChange={mockOnChange} />);
 
-    expect(
-      screen.getByText('다른 플레이어가 방 목록에서 볼 수 있습니다')
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText('코드를 아는 사람만 참가할 수 있습니다')
-    ).toBeInTheDocument();
+    expect(screen.getByText('다른 플레이어가 방 목록에서 볼 수 있습니다')).toBeInTheDocument();
+    expect(screen.getByText('코드를 아는 사람만 참가할 수 있습니다')).toBeInTheDocument();
   });
 
   it('displays section heading', () => {

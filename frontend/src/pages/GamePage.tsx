@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import type { Player, Role, TeamColor, RoomColor, WSMessage, RoleAssignedPayload } from '../types/game.types';
+import type {
+  Player,
+  Role,
+  TeamColor,
+  RoomColor,
+  WSMessage,
+  RoleAssignedPayload,
+} from '../types/game.types';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { RoleCard } from '../components/RoleCard';
-import { RoomPlayerList } from '../components/RoomPlayerList';
+import { RoleCard } from '../components/role/RoleCard';
+import { RoomPlayerList } from '../components/room/RoomPlayerList';
 import { resetGame, getRoom } from '../services/api';
 
 // T081: Create GamePage with role card and room assignment display
@@ -41,6 +48,33 @@ export function GamePage() {
       if (!roomCode || !currentPlayerId) return;
       if (role && team && currentRoom) return; // Already have role data
 
+      // First, try to load from localStorage (set by RoomPage when ROLE_ASSIGNED received)
+      console.log('[GamePage] Checking localStorage for roomCode:', roomCode);
+      const storedRole = localStorage.getItem(`role_${roomCode}`);
+      const storedTeam = localStorage.getItem(`team_${roomCode}`);
+      const storedCurrentRoom = localStorage.getItem(`currentRoom_${roomCode}`);
+      console.log('[GamePage] localStorage data:', { storedRole, storedTeam, storedCurrentRoom });
+
+      if (storedRole && storedTeam && storedCurrentRoom) {
+        console.log('[GamePage] Loading role data from localStorage');
+        setRole(JSON.parse(storedRole));
+        setTeam(storedTeam as TeamColor);
+        setCurrentRoom(storedCurrentRoom as RoomColor);
+
+        // Still fetch room data to get all players' room assignments
+        try {
+          const roomData = await getRoom(roomCode);
+          const redPlayers = roomData.players.filter((p: Player) => p.currentRoom === 'RED_ROOM');
+          const bluePlayers = roomData.players.filter((p: Player) => p.currentRoom === 'BLUE_ROOM');
+          setRedRoomPlayers(redPlayers);
+          setBlueRoomPlayers(bluePlayers);
+        } catch (error) {
+          console.error('[GamePage] Failed to fetch room players:', error);
+        }
+        return;
+      }
+
+      // If not in localStorage, fetch from API
       try {
         console.log('[GamePage] Fetching initial role data for:', roomCode, currentPlayerId);
         const roomData = await getRoom(roomCode);
@@ -53,23 +87,35 @@ export function GamePage() {
           return;
         }
 
-        const currentPlayer = roomData.players.find((p: any) => p.id === currentPlayerId);
+        const currentPlayer = roomData.players.find((p: Player) => p.id === currentPlayerId);
         console.log('[GamePage] Current player found:', currentPlayer);
 
         if (currentPlayer?.role) {
-          console.log('[GamePage] Setting initial role:', currentPlayer.role, currentPlayer.team, currentPlayer.currentRoom);
+          console.log(
+            '[GamePage] Setting initial role:',
+            currentPlayer.role,
+            currentPlayer.team,
+            currentPlayer.currentRoom
+          );
           setRole(currentPlayer.role);
-          setTeam(currentPlayer.team);
-          setCurrentRoom(currentPlayer.currentRoom);
+          setTeam(currentPlayer.team ?? null);
+          setCurrentRoom(currentPlayer.currentRoom ?? null);
 
           // Save role info to localStorage for reveal page
           localStorage.setItem(`role_${roomCode}`, JSON.stringify(currentPlayer.role));
-          localStorage.setItem(`team_${roomCode}`, currentPlayer.team);
+          if (currentPlayer.team) {
+            localStorage.setItem(`team_${roomCode}`, currentPlayer.team);
+          }
 
           // Set room players
-          const redPlayers = roomData.players.filter((p: any) => p.currentRoom === 'RED_ROOM');
-          const bluePlayers = roomData.players.filter((p: any) => p.currentRoom === 'BLUE_ROOM');
-          console.log('[GamePage] Red room players:', redPlayers.length, 'Blue room players:', bluePlayers.length);
+          const redPlayers = roomData.players.filter((p: Player) => p.currentRoom === 'RED_ROOM');
+          const bluePlayers = roomData.players.filter((p: Player) => p.currentRoom === 'BLUE_ROOM');
+          console.log(
+            '[GamePage] Red room players:',
+            redPlayers.length,
+            'Blue room players:',
+            bluePlayers.length
+          );
           setRedRoomPlayers(redPlayers);
           setBlueRoomPlayers(bluePlayers);
         } else {
@@ -130,22 +176,36 @@ export function GamePage() {
             console.log('[GamePage] Fetching room data for:', roomCode);
             const roomData = await getRoom(roomCode);
             console.log('[GamePage] Room data received:', roomData);
-            const currentPlayer = roomData.players.find((p: any) => p.id === currentPlayerId);
+            const currentPlayer = roomData.players.find((p: Player) => p.id === currentPlayerId);
             console.log('[GamePage] Current player:', currentPlayer);
             if (currentPlayer?.role) {
-              console.log('[GamePage] Setting role:', currentPlayer.role, currentPlayer.team, currentPlayer.currentRoom);
+              console.log(
+                '[GamePage] Setting role:',
+                currentPlayer.role,
+                currentPlayer.team,
+                currentPlayer.currentRoom
+              );
               setRole(currentPlayer.role);
-              setTeam(currentPlayer.team);
-              setCurrentRoom(currentPlayer.currentRoom);
+              setTeam(currentPlayer.team ?? null);
+              setCurrentRoom(currentPlayer.currentRoom ?? null);
 
               // Save role info to localStorage for reveal page
               localStorage.setItem(`role_${roomCode}`, JSON.stringify(currentPlayer.role));
-              localStorage.setItem(`team_${roomCode}`, currentPlayer.team);
+              if (currentPlayer.team) {
+                localStorage.setItem(`team_${roomCode}`, currentPlayer.team);
+              }
 
               // Set room players
-              const redPlayers = roomData.players.filter((p: any) => p.currentRoom === 'RED_ROOM');
-              const bluePlayers = roomData.players.filter((p: any) => p.currentRoom === 'BLUE_ROOM');
-              console.log('[GamePage] Red room players:', redPlayers.length, 'Blue room players:', bluePlayers.length);
+              const redPlayers = roomData.players.filter((p: Player) => p.currentRoom === 'RED_ROOM');
+              const bluePlayers = roomData.players.filter(
+                (p: Player) => p.currentRoom === 'BLUE_ROOM'
+              );
+              console.log(
+                '[GamePage] Red room players:',
+                redPlayers.length,
+                'Blue room players:',
+                bluePlayers.length
+              );
               setRedRoomPlayers(redPlayers);
               setBlueRoomPlayers(bluePlayers);
             } else {
@@ -189,7 +249,9 @@ export function GamePage() {
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ margin: 0, color: 'var(--text-primary)' }}>게임 진행 중</h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>방 코드: <strong>{roomCode}</strong></p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>
+          방 코드: <strong>{roomCode}</strong>
+        </p>
       </div>
 
       <div

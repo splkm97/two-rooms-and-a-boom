@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
-import { PlayerList } from '../PlayerList';
+import { PlayerList } from './PlayerList';
 import type { Player } from '../../types/game.types';
 
 describe('PlayerList', () => {

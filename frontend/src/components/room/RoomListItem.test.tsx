@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { RoomListItem } from '../RoomListItem';
+import { RoomListItem } from './RoomListItem';
 import type { RoomListItem as RoomListItemType } from '../../types/game.types';
 
 describe('RoomListItem', () => {

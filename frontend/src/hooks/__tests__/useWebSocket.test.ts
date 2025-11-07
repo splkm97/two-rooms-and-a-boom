@@ -30,7 +30,7 @@ class MockWebSocket {
     }, 0);
   }
 
-  send(data: string) {
+  send() {
     if (this.readyState !== MockWebSocket.OPEN) {
       throw new Error('WebSocket is not open');
     }
@@ -64,8 +64,8 @@ describe('useWebSocket', () => {
   beforeEach(() => {
     // Clear previous instances
     MockWebSocket.instances = [];
-    // @ts-ignore - Replace global WebSocket with our mock
-    global.WebSocket = MockWebSocket as any;
+    // @ts-expect-error - Replace global WebSocket with our mock
+    global.WebSocket = MockWebSocket;
   });
 
   afterEach(() => {

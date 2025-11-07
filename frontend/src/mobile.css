@@ -27,7 +27,8 @@
   }
 
   /* Card/panel adjustments */
-  .card, .panel {
+  .card,
+  .panel {
     padding: 1rem !important;
     margin: 0.5rem 0 !important;
   }
@@ -113,7 +114,10 @@
     margin: 0.25rem 0;
   }
 
-  a, button, input, select {
+  a,
+  button,
+  input,
+  select {
     min-height: 44px; /* iOS minimum */
   }
 }

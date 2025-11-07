@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { RoomListItem } from './RoomListItem';
-import { LoadingSpinner } from './LoadingSpinner';
-import { listRooms, APIError } from '../services/api';
-import type { RoomListItem as RoomListItemType } from '../types/game.types';
+import { LoadingSpinner } from '../common/LoadingSpinner';
+import { listRooms, APIError } from '../../services/api';
+import type { RoomListItem as RoomListItemType } from '../../types/game.types';
 
 interface RoomListProps {
   status?: 'WAITING' | 'IN_PROGRESS';
@@ -30,9 +30,7 @@ export function RoomList({
       setError('');
     } catch (err) {
       const errorMessage =
-        err instanceof APIError
-          ? err.userMessage
-          : '방 목록을 불러오는데 실패했습니다';
+        err instanceof APIError ? err.userMessage : '방 목록을 불러오는데 실패했습니다';
       setError(errorMessage);
     } finally {
       setLoading(false);

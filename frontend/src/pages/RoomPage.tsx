@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { Layout } from '../components/Layout';
-import { PlayerList } from '../components/PlayerList';
-import { NicknameEditor } from '../components/NicknameEditor';
-import { LoadingSpinner } from '../components/LoadingSpinner';
-import { RoleCard } from '../components/RoleCard';
-import { RoomPlayerList } from '../components/RoomPlayerList';
+import { Layout } from '../components/common/Layout';
+import { PlayerList } from '../components/game/PlayerList';
+import { NicknameEditor } from '../components/game/NicknameEditor';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { RoleCard } from '../components/role/RoleCard';
+import { RoomPlayerList } from '../components/room/RoomPlayerList';
+import { RoleListSidebar } from '../components/role/RoleListSidebar';
 import { useWebSocket } from '../hooks/useWebSocket';
 import {
   getRoom,
@@ -22,8 +23,12 @@ import type {
   Role,
   TeamColor,
   RoomColor,
-  WSMessage,
   RoleAssignedPayload,
+  PlayerJoinedPayload,
+  PlayerLeftPayload,
+  PlayerDisconnectedPayload,
+  NicknameChangedPayload,
+  OwnerChangedPayload,
 } from '../types/game.types';
 
 /**
@@ -46,6 +51,7 @@ export function RoomPage() {
   const [error, setError] = useState('');
   const [isStarting, setIsStarting] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Game view state
   const [role, setRole] = useState<Role | null>(null);
@@ -55,13 +61,13 @@ export function RoomPage() {
   const [blueRoomPlayers, setBlueRoomPlayers] = useState<Player[]>([]);
 
   // Only connect WebSocket after we have player info
-  const { isConnected, lastMessage } = useWebSocket(
-    roomCode || '',
-    currentPlayer?.id || undefined
-  );
+  const { isConnected, lastMessage } = useWebSocket(roomCode || '', currentPlayer?.id || undefined);
 
   // Ref to track if we're already joining to prevent React Strict Mode double execution
   const isJoiningRef = useRef(false);
+
+  // Ref to track if we've already processed ROLE_ASSIGNED to prevent duplicate processing
+  const roleAssignedProcessedRef = useRef(false);
   const hasJoinedRef = useRef(false);
 
   // Initial room join
@@ -98,7 +104,7 @@ export function RoomPage() {
         let player;
         if (storedPlayerId) {
           // Try to find existing player in room
-          const existingPlayer = roomData.players.find((p: any) => p.id === storedPlayerId);
+          const existingPlayer = roomData.players.find((p: Player) => p.id === storedPlayerId);
           if (existingPlayer) {
             player = existingPlayer;
           } else {
@@ -119,25 +125,27 @@ export function RoomPage() {
 
         // Fetch updated room data
         const updatedRoom = await getRoom(roomCode);
-        setRoom(updatedRoom as any);
+        setRoom(updatedRoom);
 
         // If game is in progress, load role data
         if (updatedRoom.status === 'IN_PROGRESS' && player) {
-          const currentPlayerData = updatedRoom.players.find((p: any) => p.id === player.id);
+          const currentPlayerData = updatedRoom.players.find((p: Player) => p.id === player.id);
           if (currentPlayerData?.role) {
             setRole(currentPlayerData.role);
             setTeam(currentPlayerData.team);
             setCurrentRoom(currentPlayerData.currentRoom);
 
-            const redPlayers = updatedRoom.players.filter((p: any) => p.currentRoom === 'RED_ROOM');
-            const bluePlayers = updatedRoom.players.filter((p: any) => p.currentRoom === 'BLUE_ROOM');
+            const redPlayers = updatedRoom.players.filter((p: Player) => p.currentRoom === 'RED_ROOM');
+            const bluePlayers = updatedRoom.players.filter(
+              (p: Player) => p.currentRoom === 'BLUE_ROOM'
+            );
             setRedRoomPlayers(redPlayers);
             setBlueRoomPlayers(bluePlayers);
           }
         }
 
         setLoading(false);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Failed to join room:', err);
         setError(err instanceof APIError ? err.userMessage : '방 입장에 실패했습니다');
         setLoading(false);
@@ -147,6 +155,7 @@ export function RoomPage() {
     };
 
     initializeRoom();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode]); // Note: Don't include view or setSearchParams to avoid re-joining
 
   // Handle WebSocket messages
@@ -158,7 +167,7 @@ export function RoomPage() {
     try {
       switch (lastMessage.type) {
         case 'PLAYER_JOINED': {
-          const { player } = lastMessage.payload as any;
+          const { player } = lastMessage.payload as PlayerJoinedPayload;
           setRoom((prev) => {
             if (!prev) return prev;
             const exists = prev.players.some((p) => p.id === player.id);
@@ -173,7 +182,7 @@ export function RoomPage() {
 
         case 'PLAYER_LEFT':
         case 'PLAYER_DISCONNECTED': {
-          const { playerId } = lastMessage.payload as any;
+          const { playerId } = lastMessage.payload as PlayerLeftPayload | PlayerDisconnectedPayload;
           setRoom((prev) => {
             if (!prev) return prev;
             return {
@@ -185,7 +194,7 @@ export function RoomPage() {
         }
 
         case 'NICKNAME_CHANGED': {
-          const { playerId, newNickname } = lastMessage.payload as any;
+          const { playerId, newNickname } = lastMessage.payload as NicknameChangedPayload;
           setRoom((prev) => {
             if (!prev) return prev;
             return {
@@ -204,7 +213,7 @@ export function RoomPage() {
         }
 
         case 'OWNER_CHANGED': {
-          const { newOwner } = lastMessage.payload as any;
+          const { newOwner } = lastMessage.payload as OwnerChangedPayload;
           setRoom((prev) => {
             if (!prev) return prev;
             return {
@@ -233,21 +242,50 @@ export function RoomPage() {
         }
 
         case 'ROLE_ASSIGNED': {
+          // Prevent duplicate processing
+          if (roleAssignedProcessedRef.current) {
+            console.log('[RoomPage] ROLE_ASSIGNED already processed, ignoring duplicate');
+            break;
+          }
+          roleAssignedProcessedRef.current = true;
+
           const payload = lastMessage.payload as RoleAssignedPayload;
           console.log('[RoomPage] ROLE_ASSIGNED received, switching to game view');
+          console.log('[RoomPage] Role payload:', payload);
+
+          // Reset loading state first
+          setIsStarting(false);
+
+          // Set role data - these updates are batched by React
           setRole(payload.role);
           setTeam(payload.team);
           setCurrentRoom(payload.currentRoom);
 
-          // Reset loading state and switch to game view
-          setIsStarting(false);
-          setSearchParams({ view: 'game' });
+          // Save role data to localStorage as backup
+          if (roomCode) {
+            console.log('[RoomPage] Saving to localStorage with roomCode:', roomCode);
+            localStorage.setItem(`role_${roomCode}`, JSON.stringify(payload.role));
+            localStorage.setItem(`team_${roomCode}`, payload.team);
+            localStorage.setItem(`currentRoom_${roomCode}`, payload.currentRoom);
+            console.log('[RoomPage] Saved to localStorage. Verifying:', {
+              role: localStorage.getItem(`role_${roomCode}`),
+              team: localStorage.getItem(`team_${roomCode}`),
+              currentRoom: localStorage.getItem(`currentRoom_${roomCode}`),
+            });
+          }
+
+          // Switch to game view in the next tick after state updates
+          setTimeout(() => {
+            setSearchParams({ view: 'game' });
+          }, 0);
 
           // Fetch updated room data to get all players' room assignments
           if (roomCode) {
             getRoom(roomCode).then((roomData) => {
-              const redPlayers = roomData.players.filter((p: any) => p.currentRoom === 'RED_ROOM');
-              const bluePlayers = roomData.players.filter((p: any) => p.currentRoom === 'BLUE_ROOM');
+              const redPlayers = roomData.players.filter((p: Player) => p.currentRoom === 'RED_ROOM');
+              const bluePlayers = roomData.players.filter(
+                (p: Player) => p.currentRoom === 'BLUE_ROOM'
+              );
               setRedRoomPlayers(redPlayers);
               setBlueRoomPlayers(bluePlayers);
             });
@@ -264,11 +302,13 @@ export function RoomPage() {
           setCurrentRoom(null);
           setRedRoomPlayers([]);
           setBlueRoomPlayers([]);
+          // Reset the role assigned flag so next game can process it
+          roleAssignedProcessedRef.current = false;
           break;
         }
 
         case 'ROOM_CLOSED': {
-          const { reason } = lastMessage.payload as any;
+          const { reason } = lastMessage.payload as { reason?: string };
           console.log('[RoomPage] ROOM_CLOSED received:', reason);
           // Clear localStorage for this room
           if (roomCode) {
@@ -324,7 +364,7 @@ export function RoomPage() {
     try {
       await startGame(roomCode);
       // Navigation will happen automatically via GAME_STARTED WebSocket message
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to start game:', err);
       alert(err instanceof APIError ? err.userMessage : '게임 시작에 실패했습니다');
       setIsStarting(false);
@@ -344,6 +384,7 @@ export function RoomPage() {
       setIsResetting(false);
     }
   };
+
 
   // Loading state
   if (loading) {
@@ -487,9 +528,7 @@ export function RoomPage() {
             textShadow: '1px 1px 2px rgba(0, 0, 0, 0.3)',
           }}
         >
-          <p style={{ margin: 0 }}>
-            다른 플레이어에게 이 화면을 보여주세요
-          </p>
+          <p style={{ margin: 0 }}>다른 플레이어에게 이 화면을 보여주세요</p>
         </div>
       </div>
     );
@@ -517,25 +556,31 @@ export function RoomPage() {
 
     return (
       <Layout>
-        <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          padding: 'clamp(0.5rem, 3vw, 2rem)',
-          width: '100%',
-          boxSizing: 'border-box',
-        }}>
+        <div
+          style={{
+            maxWidth: '1200px',
+            margin: '0 auto',
+            padding: 'clamp(0.5rem, 3vw, 2rem)',
+            width: '100%',
+            boxSizing: 'border-box',
+          }}
+        >
           <div style={{ marginBottom: 'clamp(1rem, 3vw, 2rem)' }}>
-            <h1 style={{
-              margin: 0,
-              color: 'var(--text-primary)',
-              fontSize: 'clamp(1.5rem, 5vw, 2rem)',
-            }}>
+            <h1
+              style={{
+                margin: 0,
+                color: 'var(--text-primary)',
+                fontSize: 'clamp(1.5rem, 5vw, 2rem)',
+              }}
+            >
               게임 진행 중
             </h1>
-            <p style={{
-              color: 'var(--text-secondary)',
-              fontSize: 'clamp(0.85rem, 2.5vw, 1rem)',
-            }}>
+            <p
+              style={{
+                color: 'var(--text-secondary)',
+                fontSize: 'clamp(0.85rem, 2.5vw, 1rem)',
+              }}
+            >
               방 코드: <strong>{roomCode}</strong>
             </p>
           </div>
@@ -572,10 +617,12 @@ export function RoomPage() {
             </div>
 
             <div>
-              <h2 style={{
-                marginTop: 0,
-                fontSize: 'clamp(1.2rem, 4vw, 1.5rem)',
-              }}>
+              <h2
+                style={{
+                  marginTop: 0,
+                  fontSize: 'clamp(1.2rem, 4vw, 1.5rem)',
+                }}
+              >
                 같은 방에 있는 플레이어
               </h2>
               <RoomPlayerList
@@ -594,20 +641,24 @@ export function RoomPage() {
               textAlign: 'center',
             }}
           >
-            <p style={{
-              margin: 0,
-              color: '#666',
-              fontSize: 'clamp(0.85rem, 2.5vw, 1rem)',
-            }}>
+            <p
+              style={{
+                margin: 0,
+                color: '#666',
+                fontSize: 'clamp(0.85rem, 2.5vw, 1rem)',
+              }}
+            >
               오프라인에서 다른 플레이어들과 역할 공개, 정보 교환, 카드 교환을 진행하세요.
             </p>
           </div>
 
           {currentPlayer.isOwner && (
-            <div style={{
-              marginTop: 'clamp(1rem, 3vw, 2rem)',
-              textAlign: 'center',
-            }}>
+            <div
+              style={{
+                marginTop: 'clamp(1rem, 3vw, 2rem)',
+                textAlign: 'center',
+              }}
+            >
               <button
                 onClick={handleResetGame}
                 disabled={isResetting}
@@ -638,13 +689,21 @@ export function RoomPage() {
   // Render lobby view (default)
   return (
     <Layout>
-      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+      {/* Role list sidebar */}
+      <RoleListSidebar
+        roleConfigId={room?.roleConfigId}
+        isOpen={isSidebarOpen}
+        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+      />
+
+      <div style={{ maxWidth: '800px', margin: '0 auto', marginLeft: 'var(--sidebar-offset, auto)' }}>
         <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
           <h2 style={{ marginBottom: '0.5rem' }}>대기실</h2>
           <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#007bff' }}>
             방 코드: {roomCode}
           </div>
-          <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '0.5rem' }}>
+
+          <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
             WebSocket: {isConnected ? '🟢 연결됨' : '🔴 연결 끊김'}
           </div>
         </div>
@@ -692,9 +751,7 @@ export function RoomPage() {
                 cursor: room.players.length < 6 || isStarting ? 'not-allowed' : 'pointer',
                 opacity: room.players.length < 6 || isStarting ? 0.6 : 1,
               }}
-              title={
-                room.players.length < 6 ? '최소 6명의 플레이어가 필요합니다' : '게임 시작'
-              }
+              title={room.players.length < 6 ? '최소 6명의 플레이어가 필요합니다' : '게임 시작'}
             >
               {isStarting ? '시작 중...' : `게임 시작 (${room.players.length}/${room.maxPlayers})`}
             </button>

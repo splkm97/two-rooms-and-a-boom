@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { RoomList } from '../RoomList';
+import { RoomList } from './RoomList';
 import * as api from '../../services/api';
 import type { RoomListResponse } from '../../types/game.types';
 

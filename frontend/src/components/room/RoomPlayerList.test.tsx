@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
-import { RoomPlayerList } from '../RoomPlayerList';
+import { RoomPlayerList } from './RoomPlayerList';
 import type { Player } from '../../types/game.types';
 
 describe('RoomPlayerList', () => {
@@ -47,9 +47,7 @@ describe('RoomPlayerList', () => {
   });
 
   it('should highlight current player', () => {
-    render(
-      <RoomPlayerList players={mockPlayers} roomColor="RED_ROOM" currentPlayerId="2" />
-    );
+    render(<RoomPlayerList players={mockPlayers} roomColor="RED_ROOM" currentPlayerId="2" />);
 
     expect(screen.getByText('(나)')).toBeInTheDocument();
   });
@@ -118,9 +116,7 @@ describe('RoomPlayerList', () => {
   });
 
   it('should show current player marker only for matching ID', () => {
-    render(
-      <RoomPlayerList players={mockPlayers} roomColor="RED_ROOM" currentPlayerId="1" />
-    );
+    render(<RoomPlayerList players={mockPlayers} roomColor="RED_ROOM" currentPlayerId="1" />);
 
     const playerOneElement = screen.getByText('Player 1').closest('li');
     const playerTwoElement = screen.getByText('Player 2').closest('li');

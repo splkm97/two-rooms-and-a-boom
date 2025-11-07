@@ -1,5 +1,9 @@
+import type { RoleConfigsResponse, RoleConfig } from '../types/roleConfig';
+import type { Player } from '../types/game.types';
+
 // Use environment variable, or window.location.origin for production (same origin), or default to localhost
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ||
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
   (typeof window !== 'undefined' && window.location.origin !== 'http://localhost:5173'
     ? window.location.origin
     : 'http://localhost:8080');
@@ -7,30 +11,34 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ||
 // T106: Korean error message mapping
 const ERROR_MESSAGES: Record<string, string> = {
   // Room errors
-  'ROOM_NOT_FOUND': '방을 찾을 수 없습니다. 방 코드를 확인해주세요.',
-  'ROOM_FULL': '방이 가득 찼습니다. 다른 방에 참가해주세요.',
-  'GAME_ALREADY_STARTED': '이미 게임이 시작되었습니다.',
-  'INVALID_REQUEST': '잘못된 요청입니다.',
+  ROOM_NOT_FOUND: '방을 찾을 수 없습니다. 방 코드를 확인해주세요.',
+  ROOM_FULL: '방이 가득 찼습니다. 다른 방에 참가해주세요.',
+  GAME_ALREADY_STARTED: '이미 게임이 시작되었습니다.',
+  INVALID_REQUEST: '잘못된 요청입니다.',
+  INVALID_ROLE_CONFIG: '선택한 역할 설정을 찾을 수 없습니다.',
 
   // Player errors
-  'PLAYER_NOT_FOUND': '플레이어를 찾을 수 없습니다.',
-  'INVALID_NICKNAME': '닉네임은 2~20자 사이여야 합니다.',
+  PLAYER_NOT_FOUND: '플레이어를 찾을 수 없습니다.',
+  INVALID_NICKNAME: '닉네임은 2~20자 사이여야 합니다.',
 
   // Game errors
-  'INSUFFICIENT_PLAYERS': '게임을 시작하려면 최소 6명의 플레이어가 필요합니다.',
-  'GAME_NOT_STARTED': '게임이 시작되지 않았습니다.',
+  INSUFFICIENT_PLAYERS: '게임을 시작하려면 최소 6명의 플레이어가 필요합니다.',
+  GAME_NOT_STARTED: '게임이 시작되지 않았습니다.',
+
+  // Role config errors
+  FETCH_CONFIGS_FAILED: '역할 설정을 불러올 수 없습니다.',
 
   // Generic errors
-  'UNKNOWN_ERROR': '알 수 없는 오류가 발생했습니다.',
-  'NETWORK_ERROR': '네트워크 연결을 확인해주세요.',
+  UNKNOWN_ERROR: '알 수 없는 오류가 발생했습니다.',
+  NETWORK_ERROR: '네트워크 연결을 확인해주세요.',
 };
 
 export class APIError extends Error {
   code: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   userMessage: string;
 
-  constructor(code: string, message: string, details?: Record<string, any>) {
+  constructor(code: string, message: string, details?: Record<string, unknown>) {
     super(message);
     this.name = 'APIError';
     this.code = code;
@@ -62,12 +70,12 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   get: <T>(url: string) => fetchJSON<T>(url, { method: 'GET' }),
-  post: <T>(url: string, body?: any) =>
+  post: <T>(url: string, body?: unknown) =>
     fetchJSON<T>(url, {
       method: 'POST',
       body: body ? JSON.stringify(body) : undefined,
     }),
-  patch: <T>(url: string, body?: any) =>
+  patch: <T>(url: string, body?: unknown) =>
     fetchJSON<T>(url, {
       method: 'PATCH',
       body: body ? JSON.stringify(body) : undefined,
@@ -79,25 +87,51 @@ export const api = {
 export interface CreateRoomRequest {
   maxPlayers: number;
   isPublic?: boolean;
+  roleConfigId?: string;
 }
 
 export interface CreateRoomResponse {
   code: string;
   status: string;
-  players: any[];
+  players: Player[];
   maxPlayers: number;
   isPublic?: boolean;
+  roleConfigId?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export async function createRoom(maxPlayers: number, isPublic: boolean = true): Promise<CreateRoomResponse> {
-  return api.post<CreateRoomResponse>('/api/v1/rooms', { maxPlayers, isPublic });
+export async function createRoom(
+  maxPlayers: number,
+  isPublic: boolean = true,
+  roleConfigId: string = 'standard'
+): Promise<CreateRoomResponse> {
+  return api.post<CreateRoomResponse>('/api/v1/rooms', {
+    maxPlayers,
+    isPublic,
+    roleConfigId,
+  });
 }
 
 // T053: Implement getRoom API function
-export async function getRoom(roomCode: string): Promise<CreateRoomResponse> {
-  return api.get<CreateRoomResponse>(`/api/v1/rooms/${roomCode}`);
+export interface GetRoomResponse {
+  code: string;
+  status: string;
+  players: Player[];
+  maxPlayers: number;
+  isPublic?: boolean;
+  roleConfigId?: string;
+  gameSession?: {
+    id: string;
+    roomCode: string;
+    startedAt: string;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getRoom(roomCode: string): Promise<GetRoomResponse> {
+  return api.get<GetRoomResponse>(`/api/v1/rooms/${roomCode}`);
 }
 
 // T054: Implement joinRoom API function
@@ -124,10 +158,9 @@ export async function updateNickname(
   playerId: string,
   nickname: string
 ): Promise<JoinRoomResponse> {
-  return api.patch<JoinRoomResponse>(
-    `/api/v1/rooms/${roomCode}/players/${playerId}/nickname`,
-    { nickname }
-  );
+  return api.patch<JoinRoomResponse>(`/api/v1/rooms/${roomCode}/players/${playerId}/nickname`, {
+    nickname,
+  });
 }
 
 // Leave room API function
@@ -193,7 +226,7 @@ export async function listRooms(
     rooms: Array<{
       code: string;
       status: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED';
-      players: any[];
+      players: Player[];
       maxPlayers: number;
       isPublic: boolean;
       createdAt: string;
@@ -204,11 +237,13 @@ export async function listRooms(
     offset: number;
   }
 
-  const response = await api.get<BackendRoomListResponse>(`/api/v1/rooms${queryString ? `?${queryString}` : ''}`);
+  const response = await api.get<BackendRoomListResponse>(
+    `/api/v1/rooms${queryString ? `?${queryString}` : ''}`
+  );
 
   // Transform to RoomListItem format
   return {
-    rooms: response.rooms.map(room => ({
+    rooms: response.rooms.map((room) => ({
       code: room.code,
       status: room.status,
       currentPlayers: room.players.length,
@@ -216,7 +251,7 @@ export async function listRooms(
       isPublic: room.isPublic,
       createdAt: room.createdAt,
       updatedAt: room.updatedAt,
-      hostNickname: room.players.find(p => p.isOwner)?.nickname,
+      hostNickname: room.players.find((p) => p.isOwner)?.nickname,
     })),
     total: response.total,
     limit: response.limit,
@@ -238,8 +273,17 @@ export async function updateRoomVisibility(
   roomCode: string,
   isPublic: boolean
 ): Promise<UpdateRoomVisibilityResponse> {
-  return api.patch<UpdateRoomVisibilityResponse>(
-    `/api/v1/rooms/${roomCode}/visibility`,
-    { isPublic }
-  );
+  return api.patch<UpdateRoomVisibilityResponse>(`/api/v1/rooms/${roomCode}/visibility`, {
+    isPublic,
+  });
+}
+
+// Get available role configurations
+export async function getRoleConfigs(): Promise<RoleConfigsResponse> {
+  return api.get<RoleConfigsResponse>('/api/v1/role-configs');
+}
+
+// Get specific role configuration by ID
+export async function getRoleConfig(configId: string): Promise<RoleConfig> {
+  return api.get<RoleConfig>(`/api/v1/role-configs/${configId}`);
 }

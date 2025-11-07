@@ -1,0 +1,100 @@
+{
+  "id": "standard",
+  "name": "Standard Game",
+  "nameKo": "기본 게임",
+  "description": "Standard Two Rooms and a Boom roles matching the original game behavior",
+  "descriptionKo": "투 룸즈 앤 어 붐의 기본 역할",
+  "version": "1.0.0",
+  "roles": [
+    {
+      "id": "PRESIDENT",
+      "name": "President",
+      "nameKo": "대통령",
+      "team": "BLUE",
+      "type": "leader",
+      "description": "Blue team must protect the President",
+      "descriptionKo": "블루 팀은 대통령을 보호해야 합니다",
+      "count": 1,
+      "minPlayers": 6,
+      "priority": 1,
+      "color": "#0066CC",
+      "icon": "👔"
+    },
+    {
+      "id": "BOMBER",
+      "name": "Bomber",
+      "nameKo": "폭탄범",
+      "team": "RED",
+      "type": "leader",
+      "description": "Red team wins if Bomber meets President",
+      "descriptionKo": "폭탄범이 대통령을 만나면 레드 팀이 승리합니다",
+      "count": 1,
+      "minPlayers": 6,
+      "priority": 1,
+      "color": "#CC0000",
+      "icon": "💣"
+    },
+    {
+      "id": "BLUE_SPY",
+      "name": "Blue Spy",
+      "nameKo": "블루 스파이",
+      "team": "BLUE",
+      "type": "spy",
+      "description": "Knows Blue affiliation but appears neutral",
+      "descriptionKo": "블루 소속을 알지만 중립으로 보입니다",
+      "count": {
+        "6-9": 1,
+        "10+": 2
+      },
+      "minPlayers": 6,
+      "priority": 2,
+      "color": "#6699FF",
+      "icon": "🕵️"
+    },
+    {
+      "id": "RED_SPY",
+      "name": "Red Spy",
+      "nameKo": "레드 스파이",
+      "team": "RED",
+      "type": "spy",
+      "description": "Knows Red affiliation but appears neutral",
+      "descriptionKo": "레드 소속을 알지만 중립으로 보입니다",
+      "count": {
+        "6-9": 1,
+        "10+": 2
+      },
+      "minPlayers": 6,
+      "priority": 2,
+      "color": "#FF6666",
+      "icon": "🕵️"
+    },
+    {
+      "id": "BLUE_OPERATIVE",
+      "name": "Blue Operative",
+      "nameKo": "블루 요원",
+      "team": "BLUE",
+      "type": "operative",
+      "description": "Standard Blue team member",
+      "descriptionKo": "블루 팀의 일반 요원입니다",
+      "count": 99,
+      "minPlayers": 6,
+      "priority": 99,
+      "color": "#3399FF",
+      "icon": "👤"
+    },
+    {
+      "id": "RED_OPERATIVE",
+      "name": "Red Operative",
+      "nameKo": "레드 요원",
+      "team": "RED",
+      "type": "operative",
+      "description": "Standard Red team member",
+      "descriptionKo": "레드 팀의 일반 요원입니다",
+      "count": 99,
+      "minPlayers": 6,
+      "priority": 99,
+      "color": "#FF3333",
+      "icon": "👤"
+    }
+  ]
+}

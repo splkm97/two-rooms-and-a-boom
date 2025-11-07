@@ -17,15 +17,17 @@ function BrowserCompatibilityCheck({ children }: { children: React.ReactNode }) 
 
   if (!isCompatible) {
     return (
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        padding: '20px',
-        textAlign: 'center'
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          padding: '20px',
+          textAlign: 'center',
+        }}
+      >
         <h1>❌ 브라우저 호환성 오류</h1>
         <p>죄송합니다. 현재 브라우저는 WebSocket을 지원하지 않습니다.</p>
         <p>다음 브라우저를 사용해주세요:</p>

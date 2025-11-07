@@ -1,4 +1,4 @@
-import type { Role, TeamColor, RoomColor } from '../types/game.types';
+import type { Role, TeamColor, RoomColor } from '../../types/game.types';
 
 interface RoleCardProps {
   role: Role;
@@ -11,10 +11,8 @@ export function RoleCard({ role, team, currentRoom }: RoleCardProps) {
   // 스파이는 반대 팀 색상을 사용 (적 팀에 잠입했으므로)
   const displayTeam = role.isSpy ? (team === 'RED' ? 'BLUE' : 'RED') : team;
   const teamColor = displayTeam === 'RED' ? '#dc2626' : '#2563eb';
-  const teamBgColor = displayTeam === 'RED' ? '#fee2e2' : '#dbeafe';
   const roomName = currentRoom === 'RED_ROOM' ? '빨간 방' : '파란 방';
   const roomColor = currentRoom === 'RED_ROOM' ? '#dc2626' : '#2563eb';
-  const roomBgColor = currentRoom === 'RED_ROOM' ? '#fecaca' : '#bfdbfe';
 
   return (
     <div
@@ -31,11 +29,22 @@ export function RoleCard({ role, team, currentRoom }: RoleCardProps) {
       </div>
 
       <div style={{ marginBottom: '1rem' }}>
-        <h3 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--text-primary)', fontWeight: 'bold' }}>{role.name}</h3>
+        <h3
+          style={{
+            margin: 0,
+            fontSize: '1.5rem',
+            color: 'var(--text-primary)',
+            fontWeight: 'bold',
+          }}
+        >
+          {role.name}
+        </h3>
         <p style={{ color: teamColor, fontWeight: 'bold', margin: '0.5rem 0', fontSize: '1.1rem' }}>
           {displayTeam === 'RED' ? '레드 팀' : '블루 팀'}
           {role.isSpy && (
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>
+            <span
+              style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}
+            >
               (실제: {team === 'RED' ? '레드 팀' : '블루 팀'})
             </span>
           )}
@@ -43,7 +52,9 @@ export function RoleCard({ role, team, currentRoom }: RoleCardProps) {
       </div>
 
       <div style={{ marginBottom: '1rem' }}>
-        <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1rem', lineHeight: '1.5' }}>{role.description}</p>
+        <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1rem', lineHeight: '1.5' }}>
+          {role.description}
+        </p>
       </div>
 
       <div
@@ -70,9 +81,7 @@ export function RoleCard({ role, team, currentRoom }: RoleCardProps) {
             border: '3px solid #b45309',
           }}
         >
-          <span style={{ fontWeight: 'bold', color: '#1f2937', fontSize: '1.2rem' }}>
-            👑 리더
-          </span>
+          <span style={{ fontWeight: 'bold', color: '#1f2937', fontSize: '1.2rem' }}>👑 리더</span>
         </div>
       )}
 

@@ -1,5 +1,5 @@
 // T059: Create PlayerList component showing all players in room
-import type { Player } from '../types/game.types';
+import type { Player } from '../../types/game.types';
 
 interface PlayerListProps {
   players: Player[];
@@ -33,7 +33,9 @@ export function PlayerList({ players, currentPlayerId }: PlayerListProps) {
                 padding: '0.75rem',
                 marginBottom: '0.5rem',
                 backgroundColor:
-                  player.id === currentPlayerId ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-secondary)',
+                  player.id === currentPlayerId
+                    ? 'rgba(59, 130, 246, 0.15)'
+                    : 'var(--bg-secondary)',
                 borderRadius: '4px',
                 display: 'flex',
                 justifyContent: 'space-between',

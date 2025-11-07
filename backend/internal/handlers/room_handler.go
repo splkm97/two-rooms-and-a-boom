@@ -6,25 +6,29 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/kalee/two-rooms-and-a-boom/internal/config"
 	"github.com/kalee/two-rooms-and-a-boom/internal/services"
 )
 
 // RoomHandler handles room-related HTTP requests
 type RoomHandler struct {
 	roomService *services.RoomService
+	roleLoader  *config.RoleConfigLoader
 }
 
 // NewRoomHandler creates a new RoomHandler instance
-func NewRoomHandler(roomService *services.RoomService) *RoomHandler {
+func NewRoomHandler(roomService *services.RoomService, roleLoader *config.RoleConfigLoader) *RoomHandler {
 	return &RoomHandler{
 		roomService: roomService,
+		roleLoader:  roleLoader,
 	}
 }
 
 // CreateRoomRequest represents the request body for creating a room
 type CreateRoomRequest struct {
-	MaxPlayers int   `json:"maxPlayers" binding:"required,min=6,max=30"`
-	IsPublic   *bool `json:"isPublic"` // Optional, defaults to true if not provided
+	MaxPlayers   int    `json:"maxPlayers" binding:"required,min=6,max=30"`
+	IsPublic     *bool  `json:"isPublic"`     // Optional, defaults to true if not provided
+	RoleConfigID string `json:"roleConfigId"` // Optional, defaults to "standard" if not provided
 }
 
 // T038: Create POST /api/v1/rooms handler
@@ -44,7 +48,24 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 		isPublic = *req.IsPublic
 	}
 
-	room, err := h.roomService.CreateRoom(req.MaxPlayers, isPublic)
+	// Default to "standard" if not specified
+	roleConfigID := req.RoleConfigID
+	if roleConfigID == "" {
+		roleConfigID = "standard"
+	}
+
+	// Validate role config exists
+	if h.roleLoader != nil {
+		if _, err := h.roleLoader.Get(roleConfigID); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"code":    "INVALID_ROLE_CONFIG",
+				"message": fmt.Sprintf("Role configuration '%s' not found", roleConfigID),
+			})
+			return
+		}
+	}
+
+	room, err := h.roomService.CreateRoom(req.MaxPlayers, isPublic, roleConfigID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"code":    "CREATE_ROOM_FAILED",
@@ -85,8 +106,8 @@ func (h *RoomHandler) GetRoom(c *gin.Context) {
 func (h *RoomHandler) ListRooms(c *gin.Context) {
 	// Parse query parameters
 	status := c.Query("status")
-	limit := 50  // default
-	offset := 0  // default
+	limit := 50 // default
+	offset := 0 // default
 
 	if limitStr := c.Query("limit"); limitStr != "" {
 		if l, err := parseIntParam(limitStr, "limit"); err == nil {

@@ -63,8 +63,12 @@ export function RoomVisibilityToggle({ value, onChange }: RoomVisibilityTogglePr
         }}
         onMouseLeave={(e) => {
           if (value !== true) {
-            const borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim();
-            const bgCard = getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim();
+            const borderColor = getComputedStyle(document.documentElement)
+              .getPropertyValue('--border-color')
+              .trim();
+            const bgCard = getComputedStyle(document.documentElement)
+              .getPropertyValue('--bg-card')
+              .trim();
             e.currentTarget.style.borderColor = borderColor;
             e.currentTarget.style.backgroundColor = bgCard;
           }
@@ -106,8 +110,12 @@ export function RoomVisibilityToggle({ value, onChange }: RoomVisibilityTogglePr
         }}
         onMouseLeave={(e) => {
           if (value !== false) {
-            const borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim();
-            const bgCard = getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim();
+            const borderColor = getComputedStyle(document.documentElement)
+              .getPropertyValue('--border-color')
+              .trim();
+            const bgCard = getComputedStyle(document.documentElement)
+              .getPropertyValue('--bg-card')
+              .trim();
             e.currentTarget.style.borderColor = borderColor;
             e.currentTarget.style.backgroundColor = bgCard;
           }

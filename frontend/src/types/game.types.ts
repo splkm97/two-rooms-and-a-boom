@@ -43,6 +43,7 @@ export interface Room {
   status: RoomStatus;
   players: Player[];
   maxPlayers: number;
+  roleConfigId?: string;
   gameSession?: GameSession;
   createdAt: string;
   updatedAt: string;
@@ -59,7 +60,7 @@ export type WSMessageType =
   | 'ROLE_ASSIGNED'
   | 'GAME_RESET';
 
-export interface WSMessage<T = any> {
+export interface WSMessage<T = unknown> {
   type: WSMessageType;
   payload: T;
 }
@@ -117,7 +118,7 @@ export interface UpdateNicknameRequest {
 export interface ErrorResponse {
   code: string;
   message: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 // Room List types
