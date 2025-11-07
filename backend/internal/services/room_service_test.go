@@ -43,7 +43,7 @@ func TestRoomService_CreateRoom(t *testing.T) {
 		roomService := NewRoomService(roomStore)
 
 		maxPlayers := 10
-		room, err := roomService.CreateRoom(maxPlayers)
+		room, err := roomService.CreateRoom(maxPlayers, true)
 
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
@@ -98,7 +98,7 @@ func TestRoomService_CreateRoom(t *testing.T) {
 		roomStore := store.NewRoomStore()
 		roomService := NewRoomService(roomStore)
 
-		_, err := roomService.CreateRoom(5)
+		_, err := roomService.CreateRoom(5, true)
 
 		if err == nil {
 			t.Fatal("Expected error for maxPlayers < 6, got nil")
@@ -109,7 +109,7 @@ func TestRoomService_CreateRoom(t *testing.T) {
 		roomStore := store.NewRoomStore()
 		roomService := NewRoomService(roomStore)
 
-		_, err := roomService.CreateRoom(31)
+		_, err := roomService.CreateRoom(31, true)
 
 		if err == nil {
 			t.Fatal("Expected error for maxPlayers > 30, got nil")
@@ -121,14 +121,14 @@ func TestRoomService_CreateRoom(t *testing.T) {
 		roomService := NewRoomService(roomStore)
 
 		// Create first room
-		room1, err := roomService.CreateRoom(10)
+		room1, err := roomService.CreateRoom(10, true)
 		if err != nil {
 			t.Fatalf("Failed to create first room: %v", err)
 		}
 
 		// Manually inject a room with a specific code to test collision handling
 		// In a real implementation, CreateRoom should retry on collision
-		room2, err := roomService.CreateRoom(10)
+		room2, err := roomService.CreateRoom(10, true)
 		if err != nil {
 			t.Fatalf("Failed to create second room: %v", err)
 		}
@@ -147,7 +147,7 @@ func TestRoomService_TransferOwnership(t *testing.T) {
 		roomService := NewRoomService(roomStore)
 
 		// Create a room
-		room, _ := roomService.CreateRoom(10)
+		room, _ := roomService.CreateRoom(10, true)
 
 		// Add 3 players
 		player1 := &models.Player{
@@ -217,7 +217,7 @@ func TestRoomService_TransferOwnership(t *testing.T) {
 		roomService := NewRoomService(roomStore)
 
 		// Create room with only owner
-		room, _ := roomService.CreateRoom(10)
+		room, _ := roomService.CreateRoom(10, true)
 		player1 := &models.Player{
 			ID:       "player1",
 			Nickname: "플레이어1",
@@ -238,7 +238,7 @@ func TestRoomService_TransferOwnership(t *testing.T) {
 		roomService := NewRoomService(roomStore)
 
 		// Create room
-		room, _ := roomService.CreateRoom(10)
+		room, _ := roomService.CreateRoom(10, true)
 		player1 := &models.Player{
 			ID:       "player1",
 			Nickname: "플레이어1",

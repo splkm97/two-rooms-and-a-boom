@@ -10,14 +10,15 @@ import (
 type MessageType string
 
 const (
-	MessagePlayerJoined      MessageType = "PLAYER_JOINED"
-	MessagePlayerLeft        MessageType = "PLAYER_LEFT"
+	MessagePlayerJoined       MessageType = "PLAYER_JOINED"
+	MessagePlayerLeft         MessageType = "PLAYER_LEFT"
 	MessagePlayerDisconnected MessageType = "PLAYER_DISCONNECTED"
-	MessageNicknameChanged   MessageType = "NICKNAME_CHANGED"
-	MessageOwnerChanged      MessageType = "OWNER_CHANGED"
-	MessageGameStarted       MessageType = "GAME_STARTED"
-	MessageRoleAssigned      MessageType = "ROLE_ASSIGNED"
-	MessageGameReset         MessageType = "GAME_RESET"
+	MessageNicknameChanged    MessageType = "NICKNAME_CHANGED"
+	MessageOwnerChanged       MessageType = "OWNER_CHANGED"
+	MessageRoomClosed         MessageType = "ROOM_CLOSED"
+	MessageGameStarted        MessageType = "GAME_STARTED"
+	MessageRoleAssigned       MessageType = "ROLE_ASSIGNED"
+	MessageGameReset          MessageType = "GAME_RESET"
 )
 
 // Message represents a WebSocket message
@@ -50,6 +51,11 @@ type NicknameChangedPayload struct {
 // OwnerChangedPayload for OWNER_CHANGED event
 type OwnerChangedPayload struct {
 	NewOwner *models.Player `json:"newOwner"`
+}
+
+// RoomClosedPayload for ROOM_CLOSED event
+type RoomClosedPayload struct {
+	Reason string `json:"reason"`
 }
 
 // GameStartedPayload for GAME_STARTED event

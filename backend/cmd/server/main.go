@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/kalee/two-rooms-and-a-boom/internal/handlers"
+	"github.com/kalee/two-rooms-and-a-boom/internal/middleware"
 	"github.com/kalee/two-rooms-and-a-boom/internal/services"
 	"github.com/kalee/two-rooms-and-a-boom/internal/store"
 	"github.com/kalee/two-rooms-and-a-boom/internal/websocket"
@@ -94,11 +95,13 @@ func main() {
 	v1 := r.Group("/api/v1")
 	{
 		// Room routes
-		v1.POST("/rooms", roomHandler.CreateRoom)
+		v1.GET("/rooms", middleware.RoomListLimiter.Middleware(), roomHandler.ListRooms)
+		v1.POST("/rooms", middleware.RoomCreationLimiter.Middleware(), roomHandler.CreateRoom)
 		v1.GET("/rooms/:roomCode", roomHandler.GetRoom)
+		v1.PATCH("/rooms/:roomCode/visibility", roomHandler.UpdateRoomVisibility)
 
 		// Player routes
-		v1.POST("/rooms/:roomCode/players", playerHandler.JoinRoom)
+		v1.POST("/rooms/:roomCode/players", middleware.RoomJoinLimiter.Middleware(), playerHandler.JoinRoom)
 		v1.PATCH("/rooms/:roomCode/players/:playerId/nickname", playerHandler.UpdateNickname)
 		v1.DELETE("/rooms/:roomCode/players/:playerId", playerHandler.LeaveRoom)
 

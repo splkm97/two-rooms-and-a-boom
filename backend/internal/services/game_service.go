@@ -82,6 +82,15 @@ func AssignRoles(players []*models.Player) {
 		}
 	}
 
+	// Shuffle each team to randomize role assignment
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(redTeam), func(i, j int) {
+		redTeam[i], redTeam[j] = redTeam[j], redTeam[i]
+	})
+	rand.Shuffle(len(blueTeam), func(i, j int) {
+		blueTeam[i], blueTeam[j] = blueTeam[j], blueTeam[i]
+	})
+
 	// Calculate spy count per team (FR-010)
 	totalPlayers := len(players)
 	spiesPerTeam := 1

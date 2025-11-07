@@ -78,6 +78,7 @@ export const api = {
 // T052: Implement createRoom API function
 export interface CreateRoomRequest {
   maxPlayers: number;
+  isPublic?: boolean;
 }
 
 export interface CreateRoomResponse {
@@ -85,12 +86,13 @@ export interface CreateRoomResponse {
   status: string;
   players: any[];
   maxPlayers: number;
+  isPublic?: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export async function createRoom(maxPlayers: number): Promise<CreateRoomResponse> {
-  return api.post<CreateRoomResponse>('/api/v1/rooms', { maxPlayers });
+export async function createRoom(maxPlayers: number, isPublic: boolean = true): Promise<CreateRoomResponse> {
+  return api.post<CreateRoomResponse>('/api/v1/rooms', { maxPlayers, isPublic });
 }
 
 // T053: Implement getRoom API function
@@ -153,4 +155,91 @@ export interface ResetGameResponse extends CreateRoomResponse {
 
 export async function resetGame(roomCode: string): Promise<ResetGameResponse> {
   return api.post<ResetGameResponse>(`/api/v1/rooms/${roomCode}/game/reset`);
+}
+
+// Room List API functions
+export interface RoomListItem {
+  code: string;
+  status: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED';
+  currentPlayers: number;
+  maxPlayers: number;
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
+  hostNickname?: string;
+}
+
+export interface RoomListResponse {
+  rooms: RoomListItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export async function listRooms(
+  status?: 'WAITING' | 'IN_PROGRESS',
+  limit: number = 50,
+  offset: number = 0
+): Promise<RoomListResponse> {
+  const params = new URLSearchParams();
+  if (status) params.append('status', status);
+  params.append('limit', limit.toString());
+  params.append('offset', offset.toString());
+
+  const queryString = params.toString();
+
+  // Backend returns full Room objects with players array
+  interface BackendRoomListResponse {
+    rooms: Array<{
+      code: string;
+      status: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED';
+      players: any[];
+      maxPlayers: number;
+      isPublic: boolean;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    total: number;
+    limit: number;
+    offset: number;
+  }
+
+  const response = await api.get<BackendRoomListResponse>(`/api/v1/rooms${queryString ? `?${queryString}` : ''}`);
+
+  // Transform to RoomListItem format
+  return {
+    rooms: response.rooms.map(room => ({
+      code: room.code,
+      status: room.status,
+      currentPlayers: room.players.length,
+      maxPlayers: room.maxPlayers,
+      isPublic: room.isPublic,
+      createdAt: room.createdAt,
+      updatedAt: room.updatedAt,
+      hostNickname: room.players.find(p => p.isOwner)?.nickname,
+    })),
+    total: response.total,
+    limit: response.limit,
+    offset: response.offset,
+  };
+}
+
+export interface UpdateRoomVisibilityRequest {
+  isPublic: boolean;
+}
+
+export interface UpdateRoomVisibilityResponse {
+  code: string;
+  isPublic: boolean;
+  message: string;
+}
+
+export async function updateRoomVisibility(
+  roomCode: string,
+  isPublic: boolean
+): Promise<UpdateRoomVisibilityResponse> {
+  return api.patch<UpdateRoomVisibilityResponse>(
+    `/api/v1/rooms/${roomCode}/visibility`,
+    { isPublic }
+  );
 }

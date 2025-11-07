@@ -266,11 +266,25 @@ export function RoomPage() {
           setBlueRoomPlayers([]);
           break;
         }
+
+        case 'ROOM_CLOSED': {
+          const { reason } = lastMessage.payload as any;
+          console.log('[RoomPage] ROOM_CLOSED received:', reason);
+          // Clear localStorage for this room
+          if (roomCode) {
+            localStorage.removeItem(`playerId_${roomCode}`);
+            localStorage.removeItem(`isOwner_${roomCode}`);
+          }
+          // Navigate to home page with alert message
+          alert(reason || '방이 닫혔습니다');
+          navigate('/');
+          break;
+        }
       }
     } catch (err) {
       console.error('Failed to handle WebSocket message:', err);
     }
-  }, [lastMessage, roomCode, setSearchParams]);
+  }, [lastMessage, roomCode, setSearchParams, navigate]);
 
   const handleNicknameUpdate = async (newNickname: string) => {
     if (!roomCode || !currentPlayer) {

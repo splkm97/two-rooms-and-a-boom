@@ -229,6 +229,25 @@ func (h *Hub) BroadcastOwnerChanged(roomCode string, payload *OwnerChangedPayloa
 	return nil
 }
 
+// BroadcastRoomClosed broadcasts ROOM_CLOSED event to all players in the room
+func (h *Hub) BroadcastRoomClosed(roomCode string) error {
+	payload := &RoomClosedPayload{
+		Reason: "방장이 나갔습니다",
+	}
+	msg, err := NewMessage(MessageRoomClosed, payload)
+	if err != nil {
+		return err
+	}
+
+	data, err := msg.Marshal()
+	if err != nil {
+		return err
+	}
+
+	h.BroadcastToRoom(roomCode, data)
+	return nil
+}
+
 // T074: Implement GAME_STARTED broadcast
 func (h *Hub) BroadcastGameStarted(roomCode string, payload interface{}) error {
 	msg, err := NewMessage(MessageGameStarted, payload)

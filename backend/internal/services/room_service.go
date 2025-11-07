@@ -36,7 +36,7 @@ func NewRoomService(roomStore *store.RoomStore) *RoomService {
 }
 
 // T035: Implement RoomService.CreateRoom
-func (s *RoomService) CreateRoom(maxPlayers int) (*models.Room, error) {
+func (s *RoomService) CreateRoom(maxPlayers int, isPublic bool) (*models.Room, error) {
 	// Validate maxPlayers range (6-30)
 	if maxPlayers < 6 || maxPlayers > 30 {
 		return nil, errors.New("maxPlayers must be between 6 and 30")
@@ -66,6 +66,7 @@ func (s *RoomService) CreateRoom(maxPlayers int) (*models.Room, error) {
 		Status:     models.RoomStatusWaiting,
 		Players:    []*models.Player{},
 		MaxPlayers: maxPlayers,
+		IsPublic:   isPublic,
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}
@@ -77,7 +78,7 @@ func (s *RoomService) CreateRoom(maxPlayers int) (*models.Room, error) {
 	}
 
 	// T103: Log critical operation
-	log.Printf("[INFO] Room created: code=%s maxPlayers=%d", room.Code, room.MaxPlayers)
+	log.Printf("[INFO] Room created: code=%s maxPlayers=%d isPublic=%v", room.Code, room.MaxPlayers, room.IsPublic)
 
 	return room, nil
 }
@@ -128,4 +129,88 @@ func (s *RoomService) TransferOwnership(roomCode string, oldOwnerID string) (*mo
 	log.Printf("[INFO] Ownership transferred: room=%s oldOwner=%s newOwner=%s", roomCode, oldOwnerID, newOwner.ID)
 
 	return newOwner, nil
+}
+
+// RoomListResponse represents the response structure for listing public rooms
+type RoomListResponse struct {
+	Rooms  []*models.Room `json:"rooms"`
+	Total  int            `json:"total"`
+	Limit  int            `json:"limit"`
+	Offset int            `json:"offset"`
+}
+
+// GetPublicRooms retrieves a list of public rooms with filtering and pagination
+func (s *RoomService) GetPublicRooms(status string, limit int, offset int) (*RoomListResponse, error) {
+	// Validate and set defaults
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	// Validate status filter
+	if status != "" && status != string(models.RoomStatusWaiting) && status != string(models.RoomStatusInProgress) {
+		return nil, errors.New("invalid status filter: must be WAITING or IN_PROGRESS")
+	}
+
+	// Fetch public rooms from store
+	rooms, total, err := s.roomStore.ListPublicRooms(status, limit, offset)
+	if err != nil {
+		log.Printf("[ERROR] Failed to list public rooms: %v", err)
+		return nil, err
+	}
+
+	// Build response
+	response := &RoomListResponse{
+		Rooms:  rooms,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	}
+
+	log.Printf("[INFO] Listed public rooms: total=%d returned=%d status=%s", total, len(rooms), status)
+
+	return response, nil
+}
+
+// UpdateRoomVisibility updates the visibility setting of a room
+func (s *RoomService) UpdateRoomVisibility(roomCode string, playerID string, isPublic bool) (*models.Room, error) {
+	// Get the room
+	room, err := s.roomStore.Get(roomCode)
+	if err != nil {
+		return nil, err
+	}
+
+	// Verify the player is the room owner
+	var isOwner bool
+	for _, player := range room.Players {
+		if player.ID == playerID && player.IsOwner {
+			isOwner = true
+			break
+		}
+	}
+
+	if !isOwner {
+		return nil, errors.New("only the room owner can change visibility")
+	}
+
+	// Update visibility
+	if err := s.roomStore.UpdateRoomVisibility(roomCode, isPublic); err != nil {
+		log.Printf("[ERROR] Failed to update room visibility: %v", err)
+		return nil, err
+	}
+
+	// Get updated room
+	updatedRoom, err := s.roomStore.Get(roomCode)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("[INFO] Room visibility updated: code=%s isPublic=%v", roomCode, isPublic)
+
+	return updatedRoom, nil
 }

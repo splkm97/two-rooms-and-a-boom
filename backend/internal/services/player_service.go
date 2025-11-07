@@ -146,6 +146,7 @@ func (s *PlayerService) UpdateNickname(roomCode, playerID, newNickname string) (
 }
 
 // LeaveRoom removes a player from the room and broadcasts PLAYER_LEFT event
+// If the owner leaves, the entire room is deleted and ROOM_CLOSED event is broadcast
 func (s *PlayerService) LeaveRoom(roomCode, playerID string) error {
 	// Get room
 	room, err := s.roomStore.Get(roomCode)
@@ -168,24 +169,35 @@ func (s *PlayerService) LeaveRoom(roomCode, playerID string) error {
 		return models.ErrPlayerNotFound
 	}
 
+	// If the leaving player is the owner, delete the entire room
+	if wasOwner {
+		if err := s.roomStore.Delete(roomCode); err != nil {
+			fmt.Printf("[WARN] Failed to delete room %s after owner left: %v\n", roomCode, err)
+			return err
+		}
+		fmt.Printf("[INFO] Deleted room %s because owner left\n", roomCode)
+
+		// Broadcast ROOM_CLOSED event to all players in the room
+		if s.hub != nil {
+			if err := s.hub.BroadcastRoomClosed(roomCode); err != nil {
+				fmt.Printf("[WARN] Failed to broadcast ROOM_CLOSED: %v\n", err)
+			}
+		}
+		return nil
+	}
+
 	// Remove player from room
 	room.Players = append(room.Players[:playerIndex], room.Players[playerIndex+1:]...)
 	room.UpdatedAt = time.Now()
 
-	// If room is not empty and the leaving player was owner, transfer ownership
-	if len(room.Players) > 0 && wasOwner {
-		// Transfer ownership to the first remaining player
-		room.Players[0].IsOwner = true
-
-		// Broadcast owner changed event
-		if s.hub != nil {
-			ownerPayload := &ws.OwnerChangedPayload{
-				NewOwner: room.Players[0],
-			}
-			if err := s.hub.BroadcastOwnerChanged(roomCode, ownerPayload); err != nil {
-				fmt.Printf("[WARN] Failed to broadcast OWNER_CHANGED: %v\n", err)
-			}
+	// If room is empty after player leaves, delete the room
+	if len(room.Players) == 0 {
+		if err := s.roomStore.Delete(roomCode); err != nil {
+			fmt.Printf("[WARN] Failed to delete empty room %s: %v\n", roomCode, err)
+			// Continue anyway - room cleanup is not critical
 		}
+		fmt.Printf("[INFO] Deleted empty room: %s\n", roomCode)
+		return nil
 	}
 
 	// Update room in store

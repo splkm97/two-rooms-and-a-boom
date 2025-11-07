@@ -1,7 +1,7 @@
 // Team and Room colors
 export type TeamColor = 'RED' | 'BLUE';
 export type RoomColor = 'RED_ROOM' | 'BLUE_ROOM';
-export type RoomStatus = 'WAITING' | 'IN_PROGRESS';
+export type RoomStatus = 'WAITING' | 'IN_PROGRESS' | 'COMPLETED';
 
 // Role definition
 export interface Role {
@@ -103,6 +103,7 @@ export interface GameResetPayload {
 // API request/response types
 export interface CreateRoomRequest {
   maxPlayers: number;
+  isPublic?: boolean;
 }
 
 export interface CreateRoomResponse {
@@ -117,4 +118,23 @@ export interface ErrorResponse {
   code: string;
   message: string;
   details?: Record<string, any>;
+}
+
+// Room List types
+export interface RoomListItem {
+  code: string;
+  status: RoomStatus;
+  currentPlayers: number;
+  maxPlayers: number;
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
+  hostNickname?: string;
+}
+
+export interface RoomListResponse {
+  rooms: RoomListItem[];
+  total: number;
+  limit: number;
+  offset: number;
 }
