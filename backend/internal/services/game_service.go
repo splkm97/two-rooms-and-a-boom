@@ -16,9 +16,11 @@ import (
 
 // GameService handles game logic operations
 type GameService struct {
-	roomStore  *store.RoomStore
-	hub        Hub // Interface to allow mocking
-	roleLoader *config.RoleConfigLoader
+	roomStore    *store.RoomStore
+	hub          Hub // Interface to allow mocking
+	roleLoader   *config.RoleConfigLoader
+	roundManager *RoundManager
+	leaderService *LeaderService
 }
 
 // Hub interface for WebSocket broadcasts
@@ -32,10 +34,22 @@ type Hub interface {
 // NewGameService creates a new GameService instance
 func NewGameService(roomStore *store.RoomStore, roleLoader *config.RoleConfigLoader) *GameService {
 	return &GameService{
-		roomStore:  roomStore,
-		hub:        nil, // Will be set via SetHub
-		roleLoader: roleLoader,
+		roomStore:     roomStore,
+		hub:           nil, // Will be set via SetHub
+		roleLoader:    roleLoader,
+		roundManager:  nil, // Will be set via SetRoundManager
+		leaderService: nil, // Will be set via SetLeaderService
 	}
+}
+
+// SetRoundManager sets the RoundManager for starting rounds
+func (s *GameService) SetRoundManager(rm *RoundManager) {
+	s.roundManager = rm
+}
+
+// SetLeaderService sets the LeaderService for assigning leaders
+func (s *GameService) SetLeaderService(ls *LeaderService) {
+	s.leaderService = ls
 }
 
 // SetHub sets the WebSocket hub for broadcasting
@@ -543,6 +557,23 @@ func (s *GameService) StartGame(roomCode string) (*models.GameSession, error) {
 			}
 			s.hub.SendRoleAssigned(roomCode, player.ID, roleAssignedPayload)
 		}
+	}
+
+	// Start Round 1 automatically after game starts
+	if s.roundManager != nil && s.leaderService != nil {
+		log.Printf("[INFO] Automatically starting Round 1 for room=%s", roomCode)
+
+		// Assign leaders first
+		if err := s.leaderService.AssignLeaders(sessionID); err != nil {
+			log.Printf("[ERROR] Failed to assign leaders: %v", err)
+		}
+
+		// Start Round 1
+		if err := s.roundManager.StartRound(sessionID, 1); err != nil {
+			log.Printf("[ERROR] Failed to start Round 1: %v", err)
+		}
+	} else {
+		log.Printf("[WARN] RoundManager or LeaderService not set, skipping automatic round start")
 	}
 
 	return session, nil

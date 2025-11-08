@@ -102,6 +102,10 @@ func main() {
 	votingService := services.NewVotingService(roomStore, hub, leaderService)
 	exchangeService := services.NewExchangeService(roomStore, hub, leaderService)
 
+	// Wire round services to game service for automatic round start
+	gameService.SetRoundManager(roundManager)
+	gameService.SetLeaderService(leaderService)
+
 	// Initialize handlers
 	roomHandler := handlers.NewRoomHandler(roomService, roleLoader)
 	playerHandler := handlers.NewPlayerHandler(playerService)
