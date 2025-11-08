@@ -7,6 +7,12 @@ import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { RoleCard } from '../components/role/RoleCard';
 import { RoomPlayerList } from '../components/room/RoomPlayerList';
 import { RoleListSidebar } from '../components/role/RoleListSidebar';
+import { RoundTimer } from '../components/game/RoundTimer';
+import { LeaderPanel } from '../components/game/LeaderPanel';
+import { LeaderTransferModal } from '../components/game/LeaderTransferModal';
+import { VoteDialog } from '../components/game/VoteDialog';
+import { ExchangeAnimation } from '../components/game/ExchangeAnimation';
+import { RoundHistory } from '../components/game/RoundHistory';
 import { useWebSocket } from '../hooks/useWebSocket';
 import {
   getRoom,
@@ -29,6 +35,19 @@ import type {
   PlayerDisconnectedPayload,
   NicknameChangedPayload,
   OwnerChangedPayload,
+  RoundStartedPayload,
+  TimerTickPayload,
+  RoundEndedPayload,
+  LeadershipChangedPayload,
+  VoteSessionStartedPayload,
+  VoteProgressPayload,
+  VoteResultPayload,
+  LeaderAnnouncedHostagesPayload,
+  ExchangeCompletePayload,
+  VoteSession,
+  VoteChoice,
+  ExchangeRecord,
+  LeaderInfo,
 } from '../types/game.types';
 
 /**
@@ -63,8 +82,44 @@ export function RoomPage() {
   // Reveal view state
   const [revealMode, setRevealMode] = useState<'color' | 'full'>('color');
 
+  // Round state
+  const [currentRound, setCurrentRound] = useState<number>(0);
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const [totalRoundTime, setTotalRoundTime] = useState<number>(180);
+  const [redLeader, setRedLeader] = useState<LeaderInfo | null>(null);
+  const [blueLeader, setBlueLeader] = useState<LeaderInfo | null>(null);
+  const [hostageCount, setHostageCount] = useState<number>(1);
+  const [selectionLocked, setSelectionLocked] = useState<boolean>(false);
+
+  // Leader transfer state
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [canTransferLeadership, setCanTransferLeadership] = useState(true);
+
+  // Vote state
+  const [activeVoteSession, setActiveVoteSession] = useState<VoteSession | null>(null);
+  const [voteResult, setVoteResult] = useState<VoteResultPayload | null>(null);
+  const [hasVoted, setHasVoted] = useState(false);
+  const [showVoteDialog, setShowVoteDialog] = useState(false);
+
+  // Exchange state
+  const [showExchangeAnimation, setShowExchangeAnimation] = useState(false);
+  const [exchangeRecords, setExchangeRecords] = useState<ExchangeRecord[]>([]);
+
+  // History state
+  const [historyEvents, setHistoryEvents] = useState<
+    Array<{
+      type: 'exchange' | 'leadership_change';
+      roundNumber: number;
+      timestamp: string;
+      data: ExchangeRecord | LeadershipChangedPayload;
+    }>
+  >([]);
+
   // Only connect WebSocket after we have player info
-  const { isConnected, lastMessage } = useWebSocket(roomCode || '', currentPlayer?.id || undefined);
+  const { isConnected, lastMessage, sendMessage } = useWebSocket(
+    roomCode || '',
+    currentPlayer?.id || undefined
+  );
 
   // Ref to track if we're already joining to prevent React Strict Mode double execution
   const isJoiningRef = useRef(false);
@@ -292,15 +347,168 @@ export function RoomPage() {
           setCurrentRoom(null);
           setRedRoomPlayers([]);
           setBlueRoomPlayers([]);
+          // Reset round state
+          setCurrentRound(0);
+          setTimeRemaining(0);
+          setRedLeader(null);
+          setBlueLeader(null);
+          setSelectionLocked(false);
+          setHistoryEvents([]);
           // Reset the role assigned flag so next game can process it
           roleAssignedProcessedRef.current = false;
+          break;
+        }
+
+        // Round management events
+        case 'ROUND_STARTED': {
+          const payload = lastMessage.payload as RoundStartedPayload;
+          setCurrentRound(payload.roundNumber);
+          setTimeRemaining(payload.timeRemaining);
+          setTotalRoundTime(payload.duration);
+          setRedLeader(payload.redLeader);
+          setBlueLeader(payload.blueLeader);
+          setHostageCount(payload.hostageCount);
+          setSelectionLocked(false);
+          setCanTransferLeadership(true);
+          break;
+        }
+
+        case 'TIMER_TICK': {
+          const payload = lastMessage.payload as TimerTickPayload;
+          setTimeRemaining(payload.timeRemaining);
+          break;
+        }
+
+        case 'ROUND_ENDED': {
+          const payload = lastMessage.payload as RoundEndedPayload;
+          // Round ended, prepare for next round or reveal
+          if (payload.finalRound) {
+            // Game is over, will transition to reveal
+            setCurrentRound(0);
+          }
+          break;
+        }
+
+        // Leader management events
+        case 'LEADERSHIP_CHANGED': {
+          const payload = lastMessage.payload as LeadershipChangedPayload;
+          if (payload.roomColor === 'RED_ROOM') {
+            setRedLeader(payload.newLeader);
+          } else {
+            setBlueLeader(payload.newLeader);
+          }
+
+          // Add to history
+          setHistoryEvents((prev) => [
+            ...prev,
+            {
+              type: 'leadership_change',
+              roundNumber: currentRound,
+              timestamp: payload.timestamp,
+              data: payload,
+            },
+          ]);
+
+          // Close transfer modal if open
+          setShowTransferModal(false);
+          break;
+        }
+
+        // Vote events
+        case 'VOTE_SESSION_STARTED': {
+          const payload = lastMessage.payload as VoteSessionStartedPayload;
+          setActiveVoteSession({
+            voteID: payload.voteID,
+            gameSessionId: roomCode || '',
+            roomColor: payload.roomColor,
+            targetLeaderId: payload.targetLeader.id,
+            targetLeaderName: payload.targetLeader.nickname,
+            initiatorId: payload.initiator.id,
+            initiatorName: payload.initiator.nickname,
+            startedAt: payload.startedAt,
+            expiresAt: new Date(
+              new Date(payload.startedAt).getTime() + payload.timeoutSeconds * 1000
+            ).toISOString(),
+            timeoutSeconds: payload.timeoutSeconds,
+            totalVoters: payload.totalVoters,
+            votedCount: 0,
+            status: 'ACTIVE',
+          });
+          setHasVoted(false);
+          setVoteResult(null);
+          setShowVoteDialog(true);
+          setCanTransferLeadership(false);
+          break;
+        }
+
+        case 'VOTE_PROGRESS': {
+          const payload = lastMessage.payload as VoteProgressPayload;
+          setActiveVoteSession((prev) => {
+            if (!prev || prev.voteID !== payload.voteID) return prev;
+            return {
+              ...prev,
+              votedCount: payload.votedCount,
+            };
+          });
+          break;
+        }
+
+        case 'VOTE_COMPLETED': {
+          const payload = lastMessage.payload as VoteResultPayload;
+          setVoteResult(payload);
+          setActiveVoteSession((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              status: 'COMPLETED',
+            };
+          });
+
+          // Auto-close vote dialog after 5 seconds
+          setTimeout(() => {
+            setShowVoteDialog(false);
+            setActiveVoteSession(null);
+            setVoteResult(null);
+            setHasVoted(false);
+            setCanTransferLeadership(true);
+          }, 5000);
+          break;
+        }
+
+        // Exchange events
+        case 'LEADER_ANNOUNCED_HOSTAGES': {
+          const payload = lastMessage.payload as LeaderAnnouncedHostagesPayload;
+          // Lock selection for this room's leader
+          if (
+            (payload.roomColor === 'RED_ROOM' && currentPlayer?.id === redLeader?.id) ||
+            (payload.roomColor === 'BLUE_ROOM' && currentPlayer?.id === blueLeader?.id)
+          ) {
+            setSelectionLocked(true);
+          }
+          break;
+        }
+
+        case 'EXCHANGE_COMPLETE': {
+          const payload = lastMessage.payload as ExchangeCompletePayload;
+          setExchangeRecords(payload.exchanges);
+          setShowExchangeAnimation(true);
+          setSelectionLocked(false);
+
+          // Add exchanges to history
+          const newHistoryEvents = payload.exchanges.map((exchange) => ({
+            type: 'exchange' as const,
+            roundNumber: payload.roundNumber,
+            timestamp: exchange.timestamp,
+            data: exchange,
+          }));
+          setHistoryEvents((prev) => [...prev, ...newHistoryEvents]);
           break;
         }
       }
     } catch {
       // Error handling
     }
-  }, [lastMessage, roomCode, setSearchParams, navigate]);
+  }, [lastMessage, roomCode, setSearchParams, navigate, currentRound, currentPlayer, redLeader, blueLeader]);
 
   const handleNicknameUpdate = async (newNickname: string) => {
     if (!roomCode || !currentPlayer) {
@@ -359,6 +567,79 @@ export function RoomPage() {
     }
   };
 
+  // Round-based handlers
+  const handleSelectHostages = (hostageIds: string[]) => {
+    if (!currentRoom || !sendMessage) return;
+
+    sendMessage({
+      type: 'HOSTAGES_SELECTED',
+      payload: {
+        roomColor: currentRoom,
+        hostageIDs: hostageIds,
+      },
+    });
+  };
+
+  const handleTransferLeadership = (newLeaderId: string) => {
+    if (!currentRoom || !sendMessage) return;
+
+    sendMessage({
+      type: 'LEADER_TRANSFERRED',
+      payload: {
+        roomColor: currentRoom,
+        newLeaderId: newLeaderId,
+      },
+    });
+  };
+
+  const handleStartVote = () => {
+    if (!currentRoom || !sendMessage) return;
+
+    const leader = currentRoom === 'RED_ROOM' ? redLeader : blueLeader;
+    if (!leader) return;
+
+    sendMessage({
+      type: 'VOTE_REMOVE_LEADER_STARTED',
+      payload: {
+        roomColor: currentRoom,
+        targetLeaderId: leader.id,
+      },
+    });
+  };
+
+  const handleVote = (vote: VoteChoice) => {
+    if (!activeVoteSession || !sendMessage) return;
+
+    sendMessage({
+      type: 'VOTE_CAST',
+      payload: {
+        voteID: activeVoteSession.voteID,
+        vote: vote,
+      },
+    });
+
+    setHasVoted(true);
+  };
+
+  const handleExchangeAnimationComplete = () => {
+    setShowExchangeAnimation(false);
+
+    // Update player lists after exchange
+    if (roomCode) {
+      getRoom(roomCode).then((roomData) => {
+        const redPlayers = roomData.players.filter((p: Player) => p.currentRoom === 'RED_ROOM');
+        const bluePlayers = roomData.players.filter((p: Player) => p.currentRoom === 'BLUE_ROOM');
+        setRedRoomPlayers(redPlayers);
+        setBlueRoomPlayers(bluePlayers);
+
+        // Update current player's room if they were exchanged
+        const updatedCurrentPlayer = roomData.players.find((p: Player) => p.id === currentPlayer?.id);
+        if (updatedCurrentPlayer?.currentRoom) {
+          setCurrentRoom(updatedCurrentPlayer.currentRoom);
+        }
+      });
+    }
+  };
 
   // Loading state
   if (loading) {
@@ -680,9 +961,49 @@ export function RoomPage() {
     }
 
     const playersInMyRoom = currentRoom === 'RED_ROOM' ? redRoomPlayers : blueRoomPlayers;
+    const myLeader = currentRoom === 'RED_ROOM' ? redLeader : blueLeader;
+    const isLeader = currentPlayer?.id === myLeader?.id;
 
     return (
       <Layout>
+        {/* Round Timer - sticky at top */}
+        {currentRound > 0 && (
+          <RoundTimer round={currentRound} timeRemaining={timeRemaining} totalTime={totalRoundTime} />
+        )}
+
+        {/* Exchange Animation Overlay */}
+        <ExchangeAnimation
+          isActive={showExchangeAnimation}
+          exchanges={exchangeRecords}
+          onComplete={handleExchangeAnimationComplete}
+        />
+
+        {/* Vote Dialog */}
+        <VoteDialog
+          isOpen={showVoteDialog}
+          voteSession={activeVoteSession}
+          voteResult={voteResult}
+          hasVoted={hasVoted}
+          onVote={handleVote}
+        />
+
+        {/* Leader Transfer Modal */}
+        {currentPlayer && (
+          <LeaderTransferModal
+            isOpen={showTransferModal}
+            currentLeader={currentPlayer}
+            roomPlayers={playersInMyRoom}
+            onTransfer={handleTransferLeadership}
+            onCancel={() => setShowTransferModal(false)}
+            canTransfer={canTransferLeadership}
+            blockReason={
+              !canTransferLeadership
+                ? '인질 선택 중이거나 투표 진행 중에는 리더십을 이전할 수 없습니다'
+                : undefined
+            }
+          />
+        )}
+
         <div
           style={{
             maxWidth: '1200px',
@@ -709,6 +1030,7 @@ export function RoomPage() {
               }}
             >
               방 코드: <strong>{roomCode}</strong>
+              {currentRound > 0 && <> · 라운드 {currentRound}/3</>}
             </p>
           </div>
 
@@ -757,8 +1079,53 @@ export function RoomPage() {
                 roomColor={currentRoom}
                 currentPlayerId={currentPlayer.id}
               />
+
+              {/* Vote to remove leader button (non-leaders only) */}
+              {!isLeader && currentRound > 0 && playersInMyRoom.length >= 3 && !activeVoteSession && (
+                <button
+                  onClick={handleStartVote}
+                  style={{
+                    marginTop: 'clamp(0.75rem, 2vw, 1rem)',
+                    width: '100%',
+                    padding: 'clamp(0.65rem, 2vw, 0.75rem)',
+                    backgroundColor: '#f59e0b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: 'clamp(0.9rem, 2.5vw, 1rem)',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                  }}
+                >
+                  🗳️ 리더 교체 투표 시작
+                </button>
+              )}
             </div>
           </div>
+
+          {/* Leader Panel - only shown to leaders during active rounds */}
+          {isLeader && currentRound > 0 && currentPlayer && (
+            <div style={{ marginBottom: 'clamp(1rem, 3vw, 2rem)' }}>
+              <LeaderPanel
+                isLeader={isLeader}
+                hostageCount={hostageCount}
+                players={playersInMyRoom}
+                currentPlayerId={currentPlayer.id}
+                currentRoom={currentRoom}
+                onSelectHostages={handleSelectHostages}
+                onTransferLeadership={() => setShowTransferModal(true)}
+                canTransferLeadership={canTransferLeadership}
+                selectionLocked={selectionLocked}
+              />
+            </div>
+          )}
+
+          {/* Round History */}
+          {historyEvents.length > 0 && (
+            <div style={{ marginBottom: 'clamp(1rem, 3vw, 2rem)' }}>
+              <RoundHistory events={historyEvents} />
+            </div>
+          )}
 
           <div
             style={{

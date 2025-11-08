@@ -4,13 +4,15 @@ import "time"
 
 // GameSession represents active game state
 type GameSession struct {
-	ID              string    `json:"id"`              // Session ID
-	RoomCode        string    `json:"roomCode"`        // Associated room
-	RedTeam         []*Player `json:"redTeam"`         // Red team members
-	BlueTeam        []*Player `json:"blueTeam"`        // Blue team members
-	RedRoomPlayers  []*Player `json:"redRoomPlayers"`  // Players in red room
-	BlueRoomPlayers []*Player `json:"blueRoomPlayers"` // Players in blue room
-	StartedAt       time.Time `json:"startedAt"`       // Game start time
+	ID              string      `json:"id"`              // Session ID
+	RoomCode        string      `json:"roomCode"`        // Associated room
+	RedTeam         []*Player   `json:"redTeam"`         // Red team members
+	BlueTeam        []*Player   `json:"blueTeam"`        // Blue team members
+	RedRoomPlayers  []*Player   `json:"redRoomPlayers"`  // Players in red room
+	BlueRoomPlayers []*Player   `json:"blueRoomPlayers"` // Players in blue room
+	StartedAt       time.Time   `json:"startedAt"`       // Game start time
+	CurrentRound    int         `json:"currentRound"`    // Current round number (1, 2, 3)
+	RoundState      *RoundState `json:"roundState,omitempty"` // Current round state
 }
 
 // Role represents a player's assigned role

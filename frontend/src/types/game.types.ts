@@ -53,6 +53,70 @@ export interface Room {
   updatedAt: string;
 }
 
+// Round state and status
+export type RoundStatus = 'SETUP' | 'ACTIVE' | 'SELECTING' | 'EXCHANGING' | 'COMPLETE';
+
+export interface RoundState {
+  gameSessionId: string;
+  roundNumber: number;        // 1, 2, 3
+  duration: number;           // 180, 120, 60
+  timeRemaining: number;      // Seconds
+  status: RoundStatus;
+  redLeaderId: string;
+  blueLeaderId: string;
+  hostageCount: number;
+  redHostages: string[];
+  blueHostages: string[];
+  startedAt: string;
+  endedAt?: string;
+}
+
+export interface LeaderInfo {
+  id: string;
+  nickname: string;
+}
+
+export interface ExchangeRecord {
+  roundNumber: number;
+  playerId: string;
+  playerName: string;
+  fromRoom: RoomColor;
+  toRoom: RoomColor;
+  timestamp: string;
+}
+
+// Vote types
+export type VoteChoice = 'YES' | 'NO';
+export type VoteResult = 'PASSED' | 'FAILED' | 'TIMEOUT';
+export type VoteSessionStatus = 'ACTIVE' | 'COMPLETED' | 'TIMEOUT';
+export type LeadershipChangeReason = 'VOLUNTARY_TRANSFER' | 'DISCONNECTION' | 'VOTE_REMOVAL';
+
+export interface VoteSession {
+  voteID: string;
+  gameSessionId: string;
+  roomColor: RoomColor;
+  targetLeaderId: string;
+  targetLeaderName: string;
+  initiatorId: string;
+  initiatorName: string;
+  startedAt: string;
+  expiresAt: string;
+  timeoutSeconds: number;
+  totalVoters: number;
+  votedCount: number;
+  status: VoteSessionStatus;
+}
+
+export interface VoteResultPayload {
+  voteID: string;
+  result: VoteResult;
+  yesVotes: number;
+  noVotes: number;
+  totalVoters: number;
+  newLeaderId?: string;
+  newLeaderName?: string;
+}
+
 // WebSocket message types
 export type WSMessageType =
   | 'PLAYER_JOINED'
@@ -62,7 +126,26 @@ export type WSMessageType =
   | 'OWNER_CHANGED'
   | 'GAME_STARTED'
   | 'ROLE_ASSIGNED'
-  | 'GAME_RESET';
+  | 'GAME_RESET'
+  // Round management events
+  | 'ROUND_STARTED'
+  | 'TIMER_TICK'
+  | 'ROUND_ENDED'
+  // Leader management events
+  | 'LEADER_ASSIGNED'
+  | 'LEADER_TRANSFERRED'
+  | 'LEADERSHIP_CHANGED'
+  // Vote events
+  | 'VOTE_REMOVE_LEADER_STARTED'
+  | 'VOTE_SESSION_STARTED'
+  | 'VOTE_CAST'
+  | 'VOTE_PROGRESS'
+  | 'VOTE_COMPLETED'
+  // Hostage exchange events
+  | 'HOSTAGES_SELECTED'
+  | 'LEADER_ANNOUNCED_HOSTAGES'
+  | 'EXCHANGE_READY'
+  | 'EXCHANGE_COMPLETE';
 
 export interface WSMessage<T = unknown> {
   type: WSMessageType;
@@ -103,6 +186,98 @@ export interface RoleAssignedPayload {
 
 export interface GameResetPayload {
   room: Room;
+}
+
+// Round-related payloads
+export interface RoundStartedPayload {
+  roundNumber: number;
+  duration: number;
+  timeRemaining: number;
+  redLeader: LeaderInfo;
+  blueLeader: LeaderInfo;
+  hostageCount: number;
+}
+
+export interface TimerTickPayload {
+  roundNumber: number;
+  timeRemaining: number;
+}
+
+export interface RoundEndedPayload {
+  roundNumber: number;
+  finalRound: boolean;
+  nextPhase: string;
+}
+
+// Leader-related payloads
+export interface LeaderAssignedPayload {
+  roomColor: RoomColor;
+  leader: LeaderInfo;
+}
+
+export interface LeaderTransferredPayload {
+  roomColor: RoomColor;
+  newLeaderId: string;
+}
+
+export interface LeadershipChangedPayload {
+  roomColor: RoomColor;
+  oldLeader: LeaderInfo;
+  newLeader: LeaderInfo;
+  reason: LeadershipChangeReason;
+  timestamp: string;
+}
+
+// Vote-related payloads
+export interface VoteRemoveLeaderStartedPayload {
+  roomColor: RoomColor;
+  targetLeaderId: string;
+}
+
+export interface VoteSessionStartedPayload {
+  voteID: string;
+  roomColor: RoomColor;
+  targetLeader: LeaderInfo;
+  initiator: LeaderInfo;
+  totalVoters: number;
+  timeoutSeconds: number;
+  startedAt: string;
+}
+
+export interface VoteCastPayload {
+  voteID: string;
+  vote: VoteChoice;
+}
+
+export interface VoteProgressPayload {
+  voteID: string;
+  votedCount: number;
+  totalVoters: number;
+  timeRemaining: number;
+}
+
+// Exchange-related payloads
+export interface HostagesSelectedPayload {
+  roomColor: RoomColor;
+  hostageIDs: string[];
+}
+
+export interface LeaderAnnouncedHostagesPayload {
+  roomColor: RoomColor;
+  hostages: LeaderInfo[];
+  waitingForOtherLeader: boolean;
+}
+
+export interface ExchangeReadyPayload {
+  redHostages: string[];
+  blueHostages: string[];
+  countdown: number;
+}
+
+export interface ExchangeCompletePayload {
+  roundNumber: number;
+  exchanges: ExchangeRecord[];
+  nextRound?: number;
 }
 
 // API request/response types

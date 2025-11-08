@@ -96,12 +96,19 @@ func main() {
 	gameService := services.NewGameService(roomStore, roleLoader)
 	gameService.SetHub(hub)
 
+	// Initialize round/hostage exchange services
+	roundManager := services.NewRoundManager(hub, roomStore)
+	leaderService := services.NewLeaderService(roomStore, hub)
+	votingService := services.NewVotingService(roomStore, hub, leaderService)
+	exchangeService := services.NewExchangeService(roomStore, hub, leaderService)
+
 	// Initialize handlers
 	roomHandler := handlers.NewRoomHandler(roomService, roleLoader)
 	playerHandler := handlers.NewPlayerHandler(playerService)
 	gameHandler := handlers.NewGameHandler(gameService)
 	wsHandler := handlers.NewWebSocketHandler(hub, roomService, playerService)
 	roleConfigHandler := handlers.NewRoleConfigHandler(roleLoader)
+	roundHandler := handlers.NewRoundHandler(roundManager, leaderService, votingService, exchangeService)
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -133,6 +140,14 @@ func main() {
 		// Game routes (US2, US3)
 		v1.POST("/rooms/:roomCode/game/start", gameHandler.StartGame)
 		v1.POST("/rooms/:roomCode/game/reset", gameHandler.ResetGame)
+
+		// Round/hostage exchange routes (004-hostage-exchange)
+		v1.POST("/rooms/:roomCode/rounds/start", roundHandler.StartRound)
+		v1.GET("/rooms/:roomCode/rounds/current", roundHandler.GetCurrentRound)
+		v1.POST("/rooms/:roomCode/leaders/transfer", roundHandler.TransferLeadership)
+		v1.POST("/rooms/:roomCode/votes/start", roundHandler.StartVote)
+		v1.POST("/rooms/:roomCode/votes/:voteId/cast", roundHandler.CastVote)
+		v1.POST("/rooms/:roomCode/hostages/select", roundHandler.SelectHostages)
 	}
 
 	// WebSocket route
@@ -179,6 +194,9 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("[INFO] Shutting down server...")
+
+	// Cleanup round manager timers
+	roundManager.Cleanup()
 
 	// The context is used to inform the server it has 5 seconds to finish
 	// the request it is currently handling
