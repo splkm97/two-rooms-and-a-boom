@@ -1,14 +1,14 @@
 /**
  * T093: Test ResetButton component functionality
  *
- * Note: The reset button is integrated into GamePage rather than being
+ * Note: The reset button is integrated into RoomPage (game view) rather than being
  * a separate component. This test file tests the reset button behavior
- * as it appears in the GamePage component.
+ * as it appears in the RoomPage component.
  */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
-import { GamePage } from '../../pages/GamePage';
+import { RoomPage } from '../../pages/RoomPage';
 import * as api from '../../services/api';
 import type { Role, TeamColor, RoomColor } from '../../types/game.types';
 
@@ -42,7 +42,7 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-describe('ResetButton (integrated in GamePage)', () => {
+describe('ResetButton (integrated in RoomPage)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
@@ -67,30 +67,30 @@ describe('ResetButton (integrated in GamePage)', () => {
     };
   });
 
-  const renderGamePageAsOwner = () => {
+  const renderRoomPageAsOwner = () => {
     localStorage.setItem('playerId_ABC123', '1');
     localStorage.setItem('isOwner_ABC123', 'true');
 
     return render(
       <BrowserRouter>
-        <GamePage />
+        <RoomPage />
       </BrowserRouter>
     );
   };
 
-  const renderGamePageAsNonOwner = () => {
+  const renderRoomPageAsNonOwner = () => {
     localStorage.setItem('playerId_ABC123', '2');
     localStorage.setItem('isOwner_ABC123', 'false');
 
     return render(
       <BrowserRouter>
-        <GamePage />
+        <RoomPage />
       </BrowserRouter>
     );
   };
 
   it('should display reset button for room owner', () => {
-    renderGamePageAsOwner();
+    renderRoomPageAsOwner();
 
     expect(screen.getByText(/대기실로 돌아가기/)).toBeInTheDocument();
     expect(
@@ -99,7 +99,7 @@ describe('ResetButton (integrated in GamePage)', () => {
   });
 
   it('should not display reset button for non-owner', () => {
-    renderGamePageAsNonOwner();
+    renderRoomPageAsNonOwner();
 
     expect(screen.queryByText(/대기실로 돌아가기/)).not.toBeInTheDocument();
   });
@@ -107,7 +107,7 @@ describe('ResetButton (integrated in GamePage)', () => {
   it('should call resetGame API when button is clicked', async () => {
     vi.mocked(api.resetGame).mockResolvedValue(undefined);
 
-    renderGamePageAsOwner();
+    renderRoomPageAsOwner();
 
     const resetButton = screen.getByText(/대기실로 돌아가기/);
     fireEvent.click(resetButton);
@@ -120,7 +120,7 @@ describe('ResetButton (integrated in GamePage)', () => {
   it('should show loading state while resetting', async () => {
     vi.mocked(api.resetGame).mockImplementation(() => new Promise(() => {})); // Never resolves
 
-    renderGamePageAsOwner();
+    renderRoomPageAsOwner();
 
     const resetButton = screen.getByText(/대기실로 돌아가기/);
     fireEvent.click(resetButton);
@@ -137,7 +137,7 @@ describe('ResetButton (integrated in GamePage)', () => {
     const mockAlert = vi.spyOn(window, 'alert').mockImplementation(() => {});
     vi.mocked(api.resetGame).mockRejectedValue(new Error('Reset failed'));
 
-    renderGamePageAsOwner();
+    renderRoomPageAsOwner();
 
     const resetButton = screen.getByText(/대기실로 돌아가기/);
     fireEvent.click(resetButton);
@@ -153,7 +153,7 @@ describe('ResetButton (integrated in GamePage)', () => {
     const mockAlert = vi.spyOn(window, 'alert').mockImplementation(() => {});
     vi.mocked(api.resetGame).mockRejectedValue(new Error('Reset failed'));
 
-    renderGamePageAsOwner();
+    renderRoomPageAsOwner();
 
     const resetButton = screen.getByText(/대기실로 돌아가기/) as HTMLButtonElement;
     fireEvent.click(resetButton);
@@ -171,7 +171,7 @@ describe('ResetButton (integrated in GamePage)', () => {
   });
 
   it('should have correct button styling', () => {
-    renderGamePageAsOwner();
+    renderRoomPageAsOwner();
 
     const resetButton = screen.getByText(/대기실로 돌아가기/);
 
@@ -183,7 +183,7 @@ describe('ResetButton (integrated in GamePage)', () => {
   it('should navigate to lobby after successful reset via WebSocket', async () => {
     vi.mocked(api.resetGame).mockResolvedValue(undefined);
 
-    const { rerender } = renderGamePageAsOwner();
+    const { rerender } = renderRoomPageAsOwner();
 
     // Simulate GAME_RESET WebSocket message
     mockLastMessage = {
@@ -193,7 +193,7 @@ describe('ResetButton (integrated in GamePage)', () => {
 
     rerender(
       <BrowserRouter>
-        <GamePage />
+        <RoomPage />
       </BrowserRouter>
     );
 
