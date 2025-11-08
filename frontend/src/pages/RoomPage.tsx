@@ -183,15 +183,15 @@ export function RoomPage() {
 
         // Fetch updated room data
         const updatedRoom = await getRoom(roomCode);
-        setRoom(updatedRoom);
+        setRoom(updatedRoom as Room);
 
         // If game is in progress, load role data
         if (updatedRoom.status === 'IN_PROGRESS' && player) {
           const currentPlayerData = updatedRoom.players.find((p: Player) => p.id === player.id);
           if (currentPlayerData?.role) {
             setRole(currentPlayerData.role);
-            setTeam(currentPlayerData.team);
-            setCurrentRoom(currentPlayerData.currentRoom);
+            setTeam(currentPlayerData.team || null);
+            setCurrentRoom(currentPlayerData.currentRoom || null);
 
             const redPlayers = updatedRoom.players.filter((p: Player) => p.currentRoom === 'RED_ROOM');
             const bluePlayers = updatedRoom.players.filter(

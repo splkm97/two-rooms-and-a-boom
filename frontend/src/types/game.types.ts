@@ -1,5 +1,5 @@
 // Team and Room colors
-export type TeamColor = 'RED' | 'BLUE';
+export type TeamColor = 'RED' | 'BLUE' | 'GREY';
 export type RoomColor = 'RED_ROOM' | 'BLUE_ROOM';
 export type RoomStatus = 'WAITING' | 'IN_PROGRESS' | 'COMPLETED';
 
