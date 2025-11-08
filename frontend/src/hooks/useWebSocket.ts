@@ -35,7 +35,7 @@ export function useWebSocket(roomCode: string, playerId?: string) {
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
 
   const ws = useRef<WebSocket | null>(null);
-  const reconnectTimeout = useRef<number | undefined>(undefined);
+  const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const intentionalClose = useRef(false);
   const isConnectedRef = useRef(false);
 
@@ -72,7 +72,7 @@ export function useWebSocket(roomCode: string, playerId?: string) {
         try {
           // Handle multiple newline-separated JSON messages in one frame
           const data = event.data.toString().trim();
-          const messages = data.split('\n').filter((line) => line.trim());
+          const messages = data.split('\n').filter((line: string) => line.trim());
 
           // Fallback: If we receive a message but onopen didn't fire, mark as connected
           if (!isConnectedRef.current && messages.length > 0) {
