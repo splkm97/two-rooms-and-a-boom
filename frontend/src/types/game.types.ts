@@ -11,6 +11,7 @@ export interface Role {
   description: string;
   descriptionKo?: string;
   team: TeamColor;
+  icon?: string;
   isSpy: boolean;
   isLeader: boolean;
 }

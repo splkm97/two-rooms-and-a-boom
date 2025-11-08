@@ -21,6 +21,7 @@ type Role struct {
 	Description   string    `json:"description"`             // Role description (English)
 	DescriptionKo string    `json:"descriptionKo,omitempty"` // Role description (Korean)
 	Team          TeamColor `json:"team"`                    // Team affiliation
+	Icon          string    `json:"icon,omitempty"`          // Emoji icon for role
 	IsSpy         bool      `json:"isSpy"`                   // Spy flag
 	IsLeader      bool      `json:"isLeader"`                // Leader flag (President/Bomber)
 }

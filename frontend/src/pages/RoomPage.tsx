@@ -60,6 +60,9 @@ export function RoomPage() {
   const [redRoomPlayers, setRedRoomPlayers] = useState<Player[]>([]);
   const [blueRoomPlayers, setBlueRoomPlayers] = useState<Player[]>([]);
 
+  // Reveal view state
+  const [revealMode, setRevealMode] = useState<'color' | 'full'>('color');
+
   // Only connect WebSocket after we have player info
   const { isConnected, lastMessage } = useWebSocket(roomCode || '', currentPlayer?.id || undefined);
 
@@ -420,10 +423,20 @@ export function RoomPage() {
       return null;
     }
 
-    // Spies show opposite team color
-    const displayTeam = role.isSpy ? (team === 'RED' ? 'BLUE' : 'RED') : team;
-    const bgColor = displayTeam === 'RED' ? '#dc2626' : '#2563eb';
+    // Color mode: Spies show opposite team color
+    // Full mode: Show actual team color
+    const displayTeam = revealMode === 'color' && role.isSpy
+      ? (team === 'RED' ? 'BLUE' : team === 'BLUE' ? 'RED' : team)
+      : team;
+
+    const bgColor = displayTeam === 'RED' ? '#dc2626' : displayTeam === 'BLUE' ? '#2563eb' : '#6b7280';
     const textColor = '#ffffff';
+
+    const getTeamName = (teamColor: string) => {
+      if (teamColor === 'RED') return '레드 팀';
+      if (teamColor === 'BLUE') return '블루 팀';
+      return '그레이 팀';
+    };
 
     return (
       <div
@@ -450,42 +463,180 @@ export function RoomPage() {
             top: 'clamp(0.5rem, 2vw, 1rem)',
             left: 'clamp(0.5rem, 2vw, 1rem)',
             padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.5rem)',
-            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-            color: textColor,
-            border: `2px solid ${textColor}`,
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            color: bgColor,
+            border: 'none',
             borderRadius: '8px',
             fontSize: 'clamp(0.85rem, 2.5vw, 1rem)',
             fontWeight: 'bold',
             cursor: 'pointer',
+            zIndex: 1000,
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
           }}
         >
           ← 돌아가기
         </button>
 
-        {/* Center content - display team color only (hide role details) */}
+        {/* Toggle mode button */}
+        <button
+          onClick={() => setRevealMode(prev => prev === 'color' ? 'full' : 'color')}
+          style={{
+            position: 'absolute',
+            top: 'clamp(0.5rem, 2vw, 1rem)',
+            right: 'clamp(0.5rem, 2vw, 1rem)',
+            padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.5rem)',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            color: bgColor,
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: 'clamp(0.85rem, 2.5vw, 1rem)',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            zIndex: 1000,
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          }}
+        >
+          {revealMode === 'color' ? '🃏 전체 공개' : '🎨 색상만'}
+        </button>
+
+        {/* Center content */}
         <div style={{ textAlign: 'center', maxWidth: '90%', width: '100%' }}>
-          <div
-            style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              padding: 'clamp(2rem, 8vw, 4rem)',
-              borderRadius: '24px',
-              border: `4px solid rgba(255, 255, 255, 0.5)`,
-            }}
-          >
-            <h1
-              className="reveal-title"
+          {revealMode === 'color' ? (
+            /* Color sharing mode: Team color only */
+            <div
               style={{
-                color: textColor,
-                fontSize: 'clamp(2.5rem, 12vw, 5rem)',
-                fontWeight: 'bold',
-                margin: 0,
-                textShadow: '3px 3px 6px rgba(0, 0, 0, 0.4)',
-                lineHeight: 1.2,
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                padding: 'clamp(2rem, 8vw, 4rem)',
+                borderRadius: '24px',
+                border: `4px solid rgba(255, 255, 255, 0.5)`,
               }}
             >
-              {displayTeam === 'RED' ? '레드 팀' : '블루 팀'}
-            </h1>
-          </div>
+              <h1
+                className="reveal-title"
+                style={{
+                  color: textColor,
+                  fontSize: 'clamp(2.5rem, 12vw, 5rem)',
+                  fontWeight: 'bold',
+                  margin: 0,
+                  textShadow: '3px 3px 6px rgba(0, 0, 0, 0.4)',
+                  lineHeight: 1.2,
+                }}
+              >
+                {getTeamName(displayTeam)}
+              </h1>
+            </div>
+          ) : (
+            /* Full reveal mode: Complete role card */
+            <div
+              style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                padding: 'clamp(1.5rem, 5vw, 3rem)',
+                borderRadius: '24px',
+                border: `4px solid rgba(255, 255, 255, 0.8)`,
+                color: '#1f2937',
+                maxWidth: '800px',
+              }}
+            >
+              {/* Role icon */}
+              {role.icon && (
+                <div style={{ fontSize: 'clamp(2.5rem, 10vw, 4rem)', marginBottom: '1rem' }}>
+                  {role.icon}
+                </div>
+              )}
+
+              {/* Role name */}
+              <h1
+                style={{
+                  fontSize: 'clamp(2rem, 8vw, 3rem)',
+                  fontWeight: 'bold',
+                  margin: '0 0 1rem 0',
+                  color: bgColor,
+                }}
+              >
+                {role.nameKo || role.name}
+              </h1>
+
+              {/* Team badge */}
+              <div
+                style={{
+                  display: 'inline-block',
+                  padding: 'clamp(0.4rem, 2vw, 0.5rem) clamp(1rem, 3vw, 1.5rem)',
+                  borderRadius: '12px',
+                  backgroundColor: bgColor,
+                  color: textColor,
+                  fontSize: 'clamp(1rem, 3vw, 1.5rem)',
+                  fontWeight: 'bold',
+                  marginBottom: '1rem',
+                }}
+              >
+                {getTeamName(team)}
+              </div>
+
+              {/* Role type badges */}
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                {role.isLeader && (
+                  <span
+                    style={{
+                      fontSize: 'clamp(0.75rem, 2vw, 1rem)',
+                      padding: 'clamp(0.4rem, 1.5vw, 0.5rem) clamp(0.75rem, 2vw, 1rem)',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(251, 191, 36, 0.3)',
+                      color: '#92400e',
+                      fontWeight: 600,
+                      border: '2px solid #fbbf24',
+                    }}
+                  >
+                    👑 리더
+                  </span>
+                )}
+                {role.isSpy && (
+                  <span
+                    style={{
+                      fontSize: 'clamp(0.75rem, 2vw, 1rem)',
+                      padding: 'clamp(0.4rem, 1.5vw, 0.5rem) clamp(0.75rem, 2vw, 1rem)',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(167, 139, 250, 0.3)',
+                      color: '#5b21b6',
+                      fontWeight: 600,
+                      border: '2px solid #a78bfa',
+                    }}
+                  >
+                    🕵️ 스파이
+                  </span>
+                )}
+                {team === 'GREY' && (
+                  <span
+                    style={{
+                      fontSize: 'clamp(0.75rem, 2vw, 1rem)',
+                      padding: 'clamp(0.4rem, 1.5vw, 0.5rem) clamp(0.75rem, 2vw, 1rem)',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(107, 114, 128, 0.3)',
+                      color: '#1f2937',
+                      fontWeight: 600,
+                      border: '2px solid #6b7280',
+                    }}
+                  >
+                    ⚡ 독립
+                  </span>
+                )}
+              </div>
+
+              {/* Role description */}
+              <p
+                style={{
+                  fontSize: 'clamp(0.95rem, 2.5vw, 1.25rem)',
+                  lineHeight: 1.8,
+                  margin: 0,
+                  color: '#4b5563',
+                  maxWidth: '600px',
+                  marginLeft: 'auto',
+                  marginRight: 'auto',
+                }}
+              >
+                {role.descriptionKo || role.description}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Instructions */}
@@ -495,11 +646,16 @@ export function RoomPage() {
             bottom: '2rem',
             textAlign: 'center',
             color: 'rgba(255, 255, 255, 0.9)',
-            fontSize: '1.1rem',
+            fontSize: 'clamp(0.9rem, 2.5vw, 1.1rem)',
             textShadow: '1px 1px 2px rgba(0, 0, 0, 0.3)',
+            zIndex: 500,
           }}
         >
-          <p style={{ margin: 0 }}>다른 플레이어에게 이 화면을 보여주세요</p>
+          <p style={{ margin: 0 }}>
+            {revealMode === 'color'
+              ? '진영 정보 교환: 다른 플레이어에게 이 화면을 보여주세요'
+              : '역할 카드 교환: 다른 플레이어에게 이 화면을 보여주세요'}
+          </p>
         </div>
       </div>
     );
@@ -574,7 +730,7 @@ export function RoomPage() {
                   marginTop: 'clamp(0.75rem, 2vw, 1rem)',
                   width: '100%',
                   padding: 'clamp(0.75rem, 2.5vw, 1rem)',
-                  backgroundColor: team === 'RED' ? '#dc2626' : '#2563eb',
+                  backgroundColor: team === 'RED' ? '#dc2626' : team === 'BLUE' ? '#2563eb' : '#6b7280',
                   color: 'white',
                   border: 'none',
                   borderRadius: '8px',

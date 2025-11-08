@@ -147,7 +147,7 @@ func AssignRoles(players []*models.Player) {
 }
 
 // AssignRolesWithConfig assigns roles using a role configuration
-func (s *GameService) AssignRolesWithConfig(players []*models.Player, configID string) error {
+func (s *GameService) AssignRolesWithConfig(players []*models.Player, configID string, selectedRoles map[string]int) error {
 	// Get configuration
 	roleConfig, err := s.roleLoader.Get(configID)
 	if err != nil {
@@ -156,21 +156,66 @@ func (s *GameService) AssignRolesWithConfig(players []*models.Player, configID s
 
 	totalPlayers := len(players)
 
-	// Calculate how many Grey team roles to assign
+	// Filter roleConfig.Roles to only include selected roles
+	var selectedRoleDefs []config.RoleDefinition
+	totalSelectedCount := 0
+
+	if selectedRoles != nil && len(selectedRoles) > 0 {
+		// Use only selected roles with their specified counts
+		log.Printf("[DEBUG] Using selected roles: %+v", selectedRoles)
+		for _, roleDef := range roleConfig.Roles {
+			if count, ok := selectedRoles[roleDef.ID]; ok && count > 0 {
+				// Override the role's count with the selected count
+				roleDefCopy := roleDef
+				roleDefCopy.Count = config.RoleCount{Fixed: &count}
+				selectedRoleDefs = append(selectedRoleDefs, roleDefCopy)
+				totalSelectedCount += count
+				log.Printf("[DEBUG] Selected role: %s (count=%d, team=%s)", roleDef.ID, count, roleDef.Team)
+			}
+		}
+		log.Printf("[DEBUG] Total selected roles: %d, Total players: %d", totalSelectedCount, totalPlayers)
+	} else {
+		// No selection provided, use all roles from config
+		log.Printf("[DEBUG] No selected roles provided, using all roles from config")
+		selectedRoleDefs = roleConfig.Roles
+		for _, roleDef := range selectedRoleDefs {
+			if roleDef.MinPlayers <= totalPlayers {
+				totalSelectedCount += roleDef.Count.GetCount(totalPlayers)
+			}
+		}
+	}
+
+	// Validate that we have enough roles for all players
+	if totalSelectedCount > totalPlayers {
+		return fmt.Errorf("too many roles selected (%d) for player count (%d)", totalSelectedCount, totalPlayers)
+	}
+
+	// Calculate how many roles we need for each team
+	redRoleCount := 0
+	blueRoleCount := 0
 	greyRoleCount := 0
-	for _, roleDef := range roleConfig.Roles {
-		if roleDef.Team == config.TeamGrey && roleDef.MinPlayers <= totalPlayers {
-			count := roleDef.Count.GetCount(totalPlayers)
+	for _, roleDef := range selectedRoleDefs {
+		// When roles are explicitly selected, ignore minPlayers restriction
+		// since the user is consciously choosing them
+		count := roleDef.Count.GetCount(totalPlayers)
+		switch roleDef.Team {
+		case config.TeamRed:
+			redRoleCount += count
+		case config.TeamBlue:
+			blueRoleCount += count
+		case config.TeamGrey:
 			greyRoleCount += count
 		}
 	}
+
+	log.Printf("[DEBUG] Role counts by team: RED=%d, BLUE=%d, GREY=%d", redRoleCount, blueRoleCount, greyRoleCount)
 
 	// Separate players by team, reserving some for Grey team
 	var redTeam []*models.Player
 	var blueTeam []*models.Player
 	var greyPool []*models.Player
 
-	// Shuffle players for grey team selection
+	// Shuffle players for team assignment
 	rand.Seed(time.Now().UnixNano())
 	shuffled := make([]*models.Player, len(players))
 	copy(shuffled, players)
@@ -178,31 +223,47 @@ func (s *GameService) AssignRolesWithConfig(players []*models.Player, configID s
 		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
 	})
 
-	// Assign some players to grey pool (they don't have RED/BLUE team yet)
+	// Assign players to teams based on role counts
 	for i, player := range shuffled {
 		if i < greyRoleCount {
 			// Mark for Grey team
 			player.Team = models.TeamGrey
 			greyPool = append(greyPool, player)
-		} else if player.Team == models.TeamRed {
+		} else if i < greyRoleCount+redRoleCount {
+			// Mark for Red team
+			player.Team = models.TeamRed
 			redTeam = append(redTeam, player)
-		} else if player.Team == models.TeamBlue {
+		} else {
+			// Mark for Blue team
+			player.Team = models.TeamBlue
 			blueTeam = append(blueTeam, player)
 		}
 	}
 
+	log.Printf("[DEBUG] Team distribution: RED=%d, BLUE=%d, GREY=%d", len(redTeam), len(blueTeam), len(greyPool))
+
+	// Create a temporary config with only selected roles
+	tempConfig := &config.RoleConfig{
+		ID:            roleConfig.ID,
+		Name:          roleConfig.Name,
+		NameKo:        roleConfig.NameKo,
+		Description:   roleConfig.Description,
+		DescriptionKo: roleConfig.DescriptionKo,
+		Roles:         selectedRoleDefs,
+	}
+
 	// Assign RED team roles
-	if err := s.assignTeamRoles(redTeam, config.TeamRed, totalPlayers, roleConfig); err != nil {
+	if err := s.assignTeamRoles(redTeam, config.TeamRed, totalPlayers, tempConfig); err != nil {
 		return fmt.Errorf("failed to assign RED team roles: %w", err)
 	}
 
 	// Assign BLUE team roles
-	if err := s.assignTeamRoles(blueTeam, config.TeamBlue, totalPlayers, roleConfig); err != nil {
+	if err := s.assignTeamRoles(blueTeam, config.TeamBlue, totalPlayers, tempConfig); err != nil {
 		return fmt.Errorf("failed to assign BLUE team roles: %w", err)
 	}
 
 	// Assign GREY team roles
-	if err := s.assignTeamRoles(greyPool, config.TeamGrey, totalPlayers, roleConfig); err != nil {
+	if err := s.assignTeamRoles(greyPool, config.TeamGrey, totalPlayers, tempConfig); err != nil {
 		return fmt.Errorf("failed to assign GREY team roles: %w", err)
 	}
 
@@ -211,11 +272,16 @@ func (s *GameService) AssignRolesWithConfig(players []*models.Player, configID s
 
 // assignTeamRoles assigns roles to a team based on configuration
 func (s *GameService) assignTeamRoles(team []*models.Player, teamColor config.TeamColor, totalPlayers int, roleConfig *config.RoleConfig) error {
+	log.Printf("[DEBUG] assignTeamRoles: team=%s teamSize=%d totalPlayers=%d", teamColor, len(team), totalPlayers)
+
 	// Filter applicable roles for this team
+	// Note: We don't check MinPlayers here because if roles are in the config
+	// passed to this function, they were already explicitly selected by the user
 	var applicableRoles []config.RoleDefinition
 	for _, roleDef := range roleConfig.Roles {
-		if roleDef.Team == teamColor && roleDef.MinPlayers <= totalPlayers {
+		if roleDef.Team == teamColor {
 			applicableRoles = append(applicableRoles, roleDef)
+			log.Printf("[DEBUG] Applicable role for %s: %s (priority=%d)", teamColor, roleDef.ID, roleDef.Priority)
 		}
 	}
 
@@ -238,10 +304,73 @@ func (s *GameService) assignTeamRoles(team []*models.Player, teamColor config.Te
 			// Create role from config definition
 			role := createRoleFromConfig(roleDef)
 			team[playerIndex].Role = &role
+			log.Printf("[DEBUG] Assigned role %s to player %s (team=%s)", role.ID, team[playerIndex].ID, teamColor)
 			playerIndex++
 		}
 	}
 
+	// Fill remaining players with default operative roles
+	if playerIndex < len(team) {
+		log.Printf("[DEBUG] Filling %d remaining players with default operative role for team %s", len(team)-playerIndex, teamColor)
+
+		// Find the default operative role for this team
+		var defaultRole *config.RoleDefinition
+		for _, roleDef := range roleConfig.Roles {
+			if roleDef.Team == teamColor && roleDef.Type == config.RoleTypeOperative && roleDef.Priority == 99 {
+				defaultRole = &roleDef
+				break
+			}
+		}
+
+		// If no default role found in config, create a basic operative role
+		if defaultRole == nil {
+			log.Printf("[DEBUG] No default operative role found in config, creating basic role for team %s", teamColor)
+			var teamName, teamNameKo, description, descriptionKo, icon string
+			switch teamColor {
+			case config.TeamRed:
+				teamName = "Red Team"
+				teamNameKo = "레드 팀원"
+				description = "Standard Red Team member"
+				descriptionKo = "레드 팀의 일반 요원"
+				icon = "⭐"
+			case config.TeamBlue:
+				teamName = "Blue Team"
+				teamNameKo = "블루 팀원"
+				description = "Standard Blue Team member"
+				descriptionKo = "블루 팀의 일반 요원"
+				icon = "⭐"
+			case config.TeamGrey:
+				teamName = "Grey Team"
+				teamNameKo = "그레이 팀원"
+				description = "Independent player"
+				descriptionKo = "독립 플레이어"
+				icon = "⚪"
+			}
+
+			basicRole := config.RoleDefinition{
+				ID:            string(teamColor) + "_TEAM",
+				Name:          teamName,
+				NameKo:        teamNameKo,
+				Team:          teamColor,
+				Type:          config.RoleTypeOperative,
+				Description:   description,
+				DescriptionKo: descriptionKo,
+				Priority:      99,
+				Icon:          icon,
+			}
+			defaultRole = &basicRole
+		}
+
+		// Assign default role to remaining players
+		for playerIndex < len(team) {
+			role := createRoleFromConfig(*defaultRole)
+			team[playerIndex].Role = &role
+			log.Printf("[DEBUG] Assigned default role %s to player %s (team=%s)", role.ID, team[playerIndex].ID, teamColor)
+			playerIndex++
+		}
+	}
+
+	log.Printf("[DEBUG] Assigned %d roles to %d players in team %s", playerIndex, len(team), teamColor)
 	return nil
 }
 
@@ -272,6 +401,7 @@ func createRoleFromConfig(roleDef config.RoleDefinition) models.Role {
 		Description:   roleDef.Description,
 		DescriptionKo: roleDef.DescriptionKo,
 		Team:          team,
+		Icon:          roleDef.Icon,
 		IsSpy:         isSpy,
 		IsLeader:      isLeader,
 	}
@@ -367,7 +497,7 @@ func (s *GameService) StartGame(roomCode string) (*models.GameSession, error) {
 
 	// Try config-driven assignment if loader is available
 	if s.roleLoader != nil {
-		if err := s.AssignRolesWithConfig(room.Players, roleConfigID); err != nil {
+		if err := s.AssignRolesWithConfig(room.Players, roleConfigID, room.SelectedRoles); err != nil {
 			// Fall back to hardcoded assignment if config fails
 			log.Printf("[WARN] Config-driven role assignment failed: %v, falling back to hardcoded", err)
 			AssignRoles(room.Players)

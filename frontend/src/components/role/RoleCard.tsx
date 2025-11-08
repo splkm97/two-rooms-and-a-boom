@@ -9,8 +9,10 @@ interface RoleCardProps {
 // T082: Create RoleCard component showing player's role and team
 export function RoleCard({ role, team, currentRoom }: RoleCardProps) {
   // 스파이는 반대 팀 색상을 사용 (적 팀에 잠입했으므로)
-  const displayTeam = role.isSpy ? (team === 'RED' ? 'BLUE' : 'RED') : team;
-  const teamColor = displayTeam === 'RED' ? '#dc2626' : '#2563eb';
+  const displayTeam = role.isSpy
+    ? (team === 'RED' ? 'BLUE' : team === 'BLUE' ? 'RED' : team)
+    : team;
+  const teamColor = displayTeam === 'RED' ? '#dc2626' : displayTeam === 'BLUE' ? '#2563eb' : '#6b7280';
   const roomName = currentRoom === 'RED_ROOM' ? '빨간 방' : '파란 방';
   const roomColor = currentRoom === 'RED_ROOM' ? '#dc2626' : '#2563eb';
 
@@ -40,12 +42,12 @@ export function RoleCard({ role, team, currentRoom }: RoleCardProps) {
           {role.nameKo || role.name}
         </h3>
         <p style={{ color: teamColor, fontWeight: 'bold', margin: '0.5rem 0', fontSize: '1.1rem' }}>
-          {displayTeam === 'RED' ? '레드 팀' : '블루 팀'}
+          {displayTeam === 'RED' ? '레드 팀' : displayTeam === 'BLUE' ? '블루 팀' : '그레이 팀'}
           {role.isSpy && (
             <span
               style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}
             >
-              (실제: {team === 'RED' ? '레드 팀' : '블루 팀'})
+              (실제: {team === 'RED' ? '레드 팀' : team === 'BLUE' ? '블루 팀' : '그레이 팀'})
             </span>
           )}
         </p>
