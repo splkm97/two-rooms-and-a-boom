@@ -293,19 +293,6 @@ export function RoomPage() {
           roleAssignedProcessedRef.current = false;
           break;
         }
-
-        case 'ROOM_CLOSED': {
-          const { reason } = lastMessage.payload as { reason?: string };
-          // Clear localStorage for this room
-          if (roomCode) {
-            localStorage.removeItem(`playerId_${roomCode}`);
-            localStorage.removeItem(`isOwner_${roomCode}`);
-          }
-          // Navigate to home page with alert message
-          alert(reason || '방이 닫혔습니다');
-          navigate('/');
-          break;
-        }
       }
     } catch {
       // Error handling

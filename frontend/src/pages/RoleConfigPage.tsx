@@ -1,30 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getRoleConfigs, createRoom } from '../services/api';
-import type { RoleConfig } from '../types/roleConfig';
+import { getRoleConfigs, getRoleConfig, createRoom } from '../services/api';
+import type { RoleConfig, RoleDefinition } from '../types/roleConfig';
 import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
-
-interface RoleDefinition {
-  id: string;
-  name: string;
-  nameKo: string;
-  team: string;
-  type: string;
-  description: string;
-  descriptionKo: string;
-  count: number | Record<string, number>;
-  minPlayers: number;
-  priority: number;
-  color: string;
-  icon: string;
-  required?: boolean;
-}
-
-interface RoleSelection {
-  roleId: string;
-  count: number;
-}
 
 export function RoleConfigPage() {
   const navigate = useNavigate();
@@ -45,26 +24,19 @@ export function RoleConfigPage() {
 
       // Load all available roles
       const response = await getRoleConfigs();
-      const allRolesConfig = response.configs.find((c: any) => c.id === 'all-roles');
+      const allRolesConfig = response.configs.find(c => c.id === 'all-roles');
 
       if (!allRolesConfig) {
         throw new Error('All roles configuration not found');
       }
 
       // Fetch the full config to get role details
-      const fullConfigResponse = await fetch(`http://localhost:8080/api/v1/role-configs/all-roles`);
-      const fullConfig: RoleConfig = await fullConfigResponse.json();
+      const fullConfig: RoleConfig = await getRoleConfig('all-roles');
 
       setAllRoles(fullConfig.roles as RoleDefinition[]);
 
-      // Pre-select required roles with count = 1
-      const requiredRoles = new Map<string, number>();
-      fullConfig.roles
-        .filter((r: any) => r.required)
-        .forEach((r: any) => {
-          requiredRoles.set(r.id, 1);
-        });
-      setSelectedRoles(requiredRoles);
+      // Start with empty selection - user must select roles
+      setSelectedRoles(new Map());
     } catch {
       setError('역할 목록을 불러올 수 없습니다');
     } finally {
@@ -73,9 +45,6 @@ export function RoleConfigPage() {
   };
 
   const toggleRole = (roleId: string) => {
-    const role = allRoles.find(r => r.id === roleId);
-    if (role?.required) return; // Can't deselect required roles
-
     const newSelected = new Map(selectedRoles);
     if (newSelected.has(roleId)) {
       newSelected.delete(roleId);
@@ -91,10 +60,7 @@ export function RoleConfigPage() {
 
     const newSelected = new Map(selectedRoles);
     if (count === 0) {
-      const role = allRoles.find(r => r.id === roleId);
-      if (!role?.required) {
-        newSelected.delete(roleId);
-      }
+      newSelected.delete(roleId);
     } else {
       newSelected.set(roleId, count);
     }
@@ -130,9 +96,12 @@ export function RoleConfigPage() {
       // Create room with selected roles
       const room = await createRoom(totalCount, true, 'all-roles', selectedRolesRecord);
 
-      // Store player ID and owner status
-      localStorage.setItem(`playerId_${room.code}`, room.ownerId);
-      localStorage.setItem(`isOwner_${room.code}`, 'true');
+      // Store player ID and owner status (find owner from players array)
+      const owner = room.players.find(p => p.isOwner);
+      if (owner) {
+        localStorage.setItem(`playerId_${room.code}`, owner.id);
+        localStorage.setItem(`isOwner_${room.code}`, 'true');
+      }
 
       // Navigate to lobby
       navigate(`/room/${room.code}?view=lobby`);
@@ -500,8 +469,6 @@ function RoleCard({
   onToggle: () => void;
   onCountChange: (count: number) => void;
 }) {
-  const isRequired = role.required;
-
   return (
     <div
       style={{
@@ -522,7 +489,6 @@ function RoleCard({
         {/* Checkbox */}
         <button
           onClick={onToggle}
-          disabled={isRequired}
           style={{
             width: 'clamp(20px, 4vw, 24px)',
             height: 'clamp(20px, 4vw, 24px)',
@@ -533,9 +499,8 @@ function RoleCard({
             justifyContent: 'center',
             flexShrink: 0,
             backgroundColor: selected ? role.color : 'transparent',
-            cursor: isRequired ? 'not-allowed' : 'pointer',
+            cursor: 'pointer',
             padding: 0,
-            opacity: isRequired ? 0.6 : 1,
           }}
         >
           {selected && <span style={{ color: 'white', fontSize: '0.75rem' }}>✓</span>}
@@ -554,7 +519,7 @@ function RoleCard({
               marginBottom: '0.125rem',
             }}
           >
-            {role.nameKo} {isRequired && <span style={{ color: '#999', fontSize: '0.875em' }}>(필수)</span>}
+            {role.nameKo}
           </div>
           <div
             style={{
@@ -579,7 +544,7 @@ function RoleCard({
           >
             <button
               onClick={() => onCountChange(count - 1)}
-              disabled={isRequired && count <= 1}
+              disabled={count <= 1}
               style={{
                 width: 'clamp(28px, 6vw, 32px)',
                 height: 'clamp(28px, 6vw, 32px)',
@@ -588,18 +553,18 @@ function RoleCard({
                 backgroundColor: role.color,
                 color: 'white',
                 fontSize: 'clamp(1rem, 3vw, 1.25rem)',
-                cursor: (isRequired && count <= 1) ? 'not-allowed' : 'pointer',
+                cursor: count <= 1 ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                opacity: (isRequired && count <= 1) ? 0.5 : 1,
+                opacity: count <= 1 ? 0.5 : 1,
               }}
             >
               −
             </button>
             <input
               type="number"
-              min={isRequired ? 1 : 0}
+              min={1}
               max={99}
               value={count}
               onChange={(e) => {
