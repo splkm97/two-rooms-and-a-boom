@@ -563,14 +563,14 @@ func (s *GameService) StartGame(roomCode string) (*models.GameSession, error) {
 	if s.roundManager != nil && s.leaderService != nil {
 		log.Printf("[INFO] Automatically starting Round 1 for room=%s", roomCode)
 
-		// Assign leaders first
-		if err := s.leaderService.AssignLeaders(sessionID); err != nil {
-			log.Printf("[ERROR] Failed to assign leaders: %v", err)
-		}
-
-		// Start Round 1
-		if err := s.roundManager.StartRound(sessionID, 1); err != nil {
+		// First, create the round state
+		if err := s.roundManager.StartRound(roomCode, 1); err != nil {
 			log.Printf("[ERROR] Failed to start Round 1: %v", err)
+		} else {
+			// Then assign leaders (this broadcasts ROUND_STARTED with leader info)
+			if err := s.leaderService.AssignLeaders(roomCode); err != nil {
+				log.Printf("[ERROR] Failed to assign leaders: %v", err)
+			}
 		}
 	} else {
 		log.Printf("[WARN] RoundManager or LeaderService not set, skipping automatic round start")
