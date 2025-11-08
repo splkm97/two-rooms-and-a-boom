@@ -35,8 +35,11 @@ export function RoleConfigPage() {
 
       setAllRoles(fullConfig.roles as RoleDefinition[]);
 
-      // Start with empty selection - user must select roles
-      setSelectedRoles(new Map());
+      // Pre-select required roles (President and Bomber) with count=1
+      const requiredRoles = new Map<string, number>();
+      requiredRoles.set('PRESIDENT', 1);
+      requiredRoles.set('BOMBER', 1);
+      setSelectedRoles(requiredRoles);
     } catch {
       setError('역할 목록을 불러올 수 없습니다');
     } finally {
@@ -45,6 +48,12 @@ export function RoleConfigPage() {
   };
 
   const toggleRole = (roleId: string) => {
+    // Prevent deselecting required roles (President and Bomber)
+    const requiredRoles = ['PRESIDENT', 'BOMBER'];
+    if (requiredRoles.includes(roleId)) {
+      return; // Don't allow toggle for required roles
+    }
+
     const newSelected = new Map(selectedRoles);
     if (newSelected.has(roleId)) {
       newSelected.delete(roleId);
@@ -55,6 +64,12 @@ export function RoleConfigPage() {
   };
 
   const updateRoleCount = (roleId: string, count: number) => {
+    // Prevent changing count for required roles (President and Bomber must be exactly 1)
+    const requiredRoles = ['PRESIDENT', 'BOMBER'];
+    if (requiredRoles.includes(roleId)) {
+      return; // Don't allow count changes for required roles
+    }
+
     if (count < 0) return;
     if (count > 99) return; // Max limit
 
@@ -469,14 +484,19 @@ function RoleCard({
   onToggle: () => void;
   onCountChange: (count: number) => void;
 }) {
+  const isRequired = role.id === 'PRESIDENT' || role.id === 'BOMBER';
+
   return (
     <div
+      onClick={isRequired ? undefined : onToggle}
       style={{
         padding: 'clamp(0.75rem, 2vw, 1rem)',
         border: `2px solid ${selected ? role.color : 'var(--border-color, #ddd)'}`,
         borderRadius: '8px',
         backgroundColor: selected ? `${role.color}10` : 'var(--bg-card)',
         transition: 'all 0.2s',
+        cursor: isRequired ? 'default' : 'pointer',
+        opacity: isRequired ? 1 : undefined,
       }}
     >
       <div
@@ -484,42 +504,40 @@ function RoleCard({
           display: 'flex',
           alignItems: 'center',
           gap: 'clamp(0.5rem, 2vw, 0.75rem)',
+          width: '100%',
         }}
       >
-        {/* Checkbox */}
-        <button
-          onClick={onToggle}
-          style={{
-            width: 'clamp(20px, 4vw, 24px)',
-            height: 'clamp(20px, 4vw, 24px)',
-            borderRadius: '4px',
-            border: `2px solid ${selected ? role.color : '#999'}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            backgroundColor: selected ? role.color : 'transparent',
-            cursor: 'pointer',
-            padding: 0,
-          }}
-        >
-          {selected && <span style={{ color: 'white', fontSize: '0.75rem' }}>✓</span>}
-        </button>
-
         {/* Icon */}
-        <span style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)' }}>{role.icon}</span>
+        <span style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', flexShrink: 0 }}>{role.icon}</span>
 
         {/* Role Info */}
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
               fontSize: 'clamp(0.938rem, 2.5vw, 1.125rem)',
               fontWeight: 600,
               color: 'var(--text-primary)',
               marginBottom: '0.125rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
             }}
           >
-            {role.nameKo}
+            <span>{role.nameKo}</span>
+            {isRequired && (
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  padding: '0.125rem 0.375rem',
+                  backgroundColor: role.color,
+                  color: 'white',
+                  borderRadius: '4px',
+                }}
+              >
+                필수
+              </span>
+            )}
           </div>
           <div
             style={{
@@ -532,9 +550,24 @@ function RoleCard({
           </div>
         </div>
 
-        {/* Count Input */}
-        {selected && (
+        {/* Count display for required roles */}
+        {selected && isRequired && (
           <div
+            style={{
+              fontSize: 'clamp(1rem, 3vw, 1.25rem)',
+              fontWeight: 'bold',
+              color: role.color,
+              marginLeft: 'auto',
+            }}
+          >
+            ×1
+          </div>
+        )}
+
+        {/* Count Input - Only show for non-required roles */}
+        {selected && !isRequired && (
+          <div
+            onClick={(e) => e.stopPropagation()}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -543,16 +576,24 @@ function RoleCard({
             }}
           >
             <button
-              onClick={() => onCountChange(count - 1)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onCountChange(count - 1);
+              }}
               disabled={count <= 1}
               style={{
-                width: 'clamp(28px, 6vw, 32px)',
-                height: 'clamp(28px, 6vw, 32px)',
+                padding: 0,
+                margin: 0,
+                width: '24px',
+                height: '24px',
+                minWidth: '24px',
+                minHeight: '24px',
                 borderRadius: '4px',
                 border: 'none',
                 backgroundColor: role.color,
                 color: 'white',
-                fontSize: 'clamp(1rem, 3vw, 1.25rem)',
+                fontSize: '0.875rem',
+                lineHeight: '1',
                 cursor: count <= 1 ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -562,37 +603,42 @@ function RoleCard({
             >
               −
             </button>
-            <input
-              type="number"
-              min={1}
-              max={99}
-              value={count}
-              onChange={(e) => {
-                const newCount = parseInt(e.target.value) || 0;
-                onCountChange(newCount);
-              }}
+            <div
               style={{
-                width: 'clamp(45px, 10vw, 60px)',
-                height: 'clamp(32px, 6vw, 36px)',
+                width: '32px',
+                height: '24px',
                 textAlign: 'center',
-                fontSize: 'clamp(0.938rem, 2.5vw, 1.125rem)',
+                fontSize: '0.875rem',
                 fontWeight: 'bold',
-                border: `2px solid ${role.color}`,
+                border: `1.5px solid ${role.color}`,
                 borderRadius: '4px',
                 backgroundColor: 'white',
                 color: role.color,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
-            />
+            >
+              {count}
+            </div>
             <button
-              onClick={() => onCountChange(count + 1)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onCountChange(count + 1);
+              }}
               style={{
-                width: 'clamp(28px, 6vw, 32px)',
-                height: 'clamp(28px, 6vw, 32px)',
+                padding: 0,
+                margin: 0,
+                width: '24px',
+                height: '24px',
+                minWidth: '24px',
+                minHeight: '24px',
                 borderRadius: '4px',
                 border: 'none',
                 backgroundColor: role.color,
                 color: 'white',
-                fontSize: 'clamp(1rem, 3vw, 1.25rem)',
+                fontSize: '0.875rem',
+                lineHeight: '1',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
