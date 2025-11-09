@@ -320,6 +320,11 @@ func (ls *LeaderService) broadcastLeadershipChanged(
 	newLeader *models.Player,
 	reason models.LeadershipChangeReason,
 ) error {
+	room, err := ls.store.Get(roomCode)
+	if err != nil {
+		return err
+	}
+
 	var oldLeaderInfo, newLeaderInfo *websocket.LeaderInfo
 
 	if oldLeader != nil {
@@ -350,7 +355,16 @@ func (ls *LeaderService) broadcastLeadershipChanged(
 	}
 
 	data, _ := msg.Marshal()
-	ls.hub.BroadcastToRoom(roomCode, data)
+
+	// Get player IDs in the specific room color (PRIVATE event)
+	var playerIDs []string
+	for _, player := range room.Players {
+		if player.CurrentRoom == roomColor {
+			playerIDs = append(playerIDs, player.ID)
+		}
+	}
+
+	ls.hub.BroadcastToRoomColor(roomCode, playerIDs, data)
 
 	return nil
 }
@@ -397,6 +411,54 @@ func (ls *LeaderService) AssignNewLeader(roomCode string, roomColor models.RoomC
 	}
 
 	log.Printf("[INFO] New leader assigned after vote: room=%s leader=%s",
+		roomCode, newLeader.Nickname)
+
+	return newLeader, nil
+}
+
+// SetLeader assigns a specific player as leader (used for election results)
+func (ls *LeaderService) SetLeader(roomCode string, roomColor models.RoomColor, playerID string) (*models.Player, error) {
+	room, err := ls.store.Get(roomCode)
+	if err != nil {
+		return nil, err
+	}
+
+	if room.GameSession == nil || room.GameSession.RoundState == nil {
+		return nil, errors.New("no active round")
+	}
+
+	// Find the player
+	var newLeader *models.Player
+	for _, player := range room.Players {
+		if player.ID == playerID {
+			newLeader = player
+			break
+		}
+	}
+
+	if newLeader == nil {
+		return nil, errors.New("player not found")
+	}
+
+	// Verify player is in the correct room
+	if newLeader.CurrentRoom != roomColor {
+		return nil, errors.New("player not in specified room")
+	}
+
+	roundState := room.GameSession.RoundState
+
+	// Update leader assignment
+	if roomColor == models.RedRoom {
+		roundState.RedLeaderID = newLeader.ID
+	} else {
+		roundState.BlueLeaderID = newLeader.ID
+	}
+
+	if err := ls.store.Update(room); err != nil {
+		return nil, err
+	}
+
+	log.Printf("[INFO] Leader elected: room=%s leader=%s",
 		roomCode, newLeader.Nickname)
 
 	return newLeader, nil

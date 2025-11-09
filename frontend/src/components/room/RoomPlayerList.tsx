@@ -4,10 +4,11 @@ interface RoomPlayerListProps {
   players: Player[];
   roomColor: 'RED_ROOM' | 'BLUE_ROOM';
   currentPlayerId?: string;
+  leaderId?: string;
 }
 
 // T083: Create RoomPlayerList component showing same-room players
-export function RoomPlayerList({ players, roomColor, currentPlayerId }: RoomPlayerListProps) {
+export function RoomPlayerList({ players, roomColor, currentPlayerId, leaderId }: RoomPlayerListProps) {
   const roomName = roomColor === 'RED_ROOM' ? '빨간 방' : '파란 방';
   const roomBgColor = roomColor === 'RED_ROOM' ? '#fecaca' : '#bfdbfe';
   const roomBorderColor = roomColor === 'RED_ROOM' ? '#dc2626' : '#2563eb';
@@ -58,21 +59,38 @@ export function RoomPlayerList({ players, roomColor, currentPlayerId }: RoomPlay
                 </span>
               )}
             </span>
-            {player.isOwner && (
-              <span
-                style={{
-                  padding: '0.25rem 0.5rem',
-                  backgroundColor: '#fde047',
-                  border: '1px solid #ca8a04',
-                  borderRadius: '4px',
-                  fontSize: '0.875rem',
-                  fontWeight: 'bold',
-                  color: '#713f12',
-                }}
-              >
-                방장
-              </span>
-            )}
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              {player.isOwner && (
+                <span
+                  style={{
+                    padding: '0.25rem 0.5rem',
+                    backgroundColor: '#fde047',
+                    border: '1px solid #ca8a04',
+                    borderRadius: '4px',
+                    fontSize: '0.875rem',
+                    fontWeight: 'bold',
+                    color: '#713f12',
+                  }}
+                >
+                  방장
+                </span>
+              )}
+              {leaderId && player.id === leaderId && (
+                <span
+                  style={{
+                    padding: '0.25rem 0.5rem',
+                    backgroundColor: '#c084fc',
+                    border: '1px solid #7c3aed',
+                    borderRadius: '4px',
+                    fontSize: '0.875rem',
+                    fontWeight: 'bold',
+                    color: '#4c1d95',
+                  }}
+                >
+                  리더
+                </span>
+              )}
+            </div>
           </li>
         ))}
       </ul>

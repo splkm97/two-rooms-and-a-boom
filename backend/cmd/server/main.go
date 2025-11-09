@@ -150,6 +150,7 @@ func main() {
 		v1.GET("/rooms/:roomCode/rounds/current", roundHandler.GetCurrentRound)
 		v1.POST("/rooms/:roomCode/leaders/transfer", roundHandler.TransferLeadership)
 		v1.POST("/rooms/:roomCode/votes/start", roundHandler.StartVote)
+		v1.GET("/rooms/:roomCode/votes/current", roundHandler.GetCurrentVote)
 		v1.POST("/rooms/:roomCode/votes/:voteId/cast", roundHandler.CastVote)
 		v1.POST("/rooms/:roomCode/hostages/select", roundHandler.SelectHostages)
 	}

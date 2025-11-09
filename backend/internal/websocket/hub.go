@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"log"
 	"sync"
 	"time"
 )
@@ -93,38 +94,75 @@ func (h *Hub) Run() {
 
 // BroadcastToRoom sends a message to all clients in a room
 func (h *Hub) BroadcastToRoom(roomCode string, message []byte) {
+	// Create a copy of clients while holding the lock to avoid concurrent map iteration
 	h.mu.RLock()
-	clients := h.rooms[roomCode]
+	roomClients := h.rooms[roomCode]
+	clientsCopy := make([]*Client, 0, len(roomClients))
+	for client := range roomClients {
+		clientsCopy = append(clientsCopy, client)
+	}
 	h.mu.RUnlock()
 
-	for client := range clients {
-		select {
-		case client.send <- message:
-		default:
-			// Client buffer full, close connection
-			h.mu.Lock()
-			close(client.send)
-			delete(clients, client)
-			h.mu.Unlock()
+	// Now safely iterate over the copy without holding the lock
+	for _, client := range clientsCopy {
+		// Use Client.Send which has panic recovery and proper handling
+		client.Send(message)
+	}
+}
+
+// BroadcastToRoomColor sends a message to players in a specific room color (RED_ROOM or BLUE_ROOM)
+// This is used for private events that should only be visible to one team
+func (h *Hub) BroadcastToRoomColor(roomCode string, playerIDs []string, message []byte) {
+	// Build a set for quick lookup
+	targetPlayers := make(map[string]bool)
+	for _, id := range playerIDs {
+		targetPlayers[id] = true
+	}
+
+	// Create a copy of clients while holding the lock to avoid concurrent map iteration
+	h.mu.RLock()
+	roomClients := h.rooms[roomCode]
+	clientsCopy := make([]*Client, 0, len(roomClients))
+	for client := range roomClients {
+		clientsCopy = append(clientsCopy, client)
+	}
+	h.mu.RUnlock()
+
+	// Now safely iterate over the copy without holding the lock
+	for _, client := range clientsCopy {
+		if targetPlayers[client.playerID] {
+			client.Send(message)
 		}
 	}
 }
 
 // SendToClient sends a message to a specific client (unicast)
 func (h *Hub) SendToClient(roomCode, playerID string, message []byte) {
+	// Create a copy of clients while holding the lock to avoid concurrent map iteration
 	h.mu.RLock()
-	clients := h.rooms[roomCode]
+	roomClients := h.rooms[roomCode]
+	clientsCopy := make([]*Client, 0, len(roomClients))
+	for client := range roomClients {
+		clientsCopy = append(clientsCopy, client)
+	}
 	h.mu.RUnlock()
 
-	for client := range clients {
+	// Now safely iterate over the copy without holding the lock
+	found := false
+	for _, client := range clientsCopy {
 		if client.playerID == playerID {
+			found = true
 			select {
 			case client.send <- message:
+				log.Printf("[DEBUG] Sent message to player %s in room %s", playerID, roomCode)
 			default:
-				// Client buffer full
+				log.Printf("[WARN] Failed to send message to player %s (buffer full)", playerID)
 			}
 			break
 		}
+	}
+	if !found {
+		log.Printf("[WARN] Player %s not found in room %s for unicast message", playerID, roomCode)
 	}
 }
 
@@ -266,16 +304,20 @@ func (h *Hub) BroadcastGameStarted(roomCode string, payload interface{}) error {
 
 // T075: Implement ROLE_ASSIGNED unicast (to individual player)
 func (h *Hub) SendRoleAssigned(roomCode, playerID string, payload interface{}) error {
+	log.Printf("[DEBUG] SendRoleAssigned called: room=%s player=%s", roomCode, playerID)
 	msg, err := NewMessage(MessageRoleAssigned, payload)
 	if err != nil {
+		log.Printf("[ERROR] Failed to create ROLE_ASSIGNED message: %v", err)
 		return err
 	}
 
 	data, err := msg.Marshal()
 	if err != nil {
+		log.Printf("[ERROR] Failed to marshal ROLE_ASSIGNED message: %v", err)
 		return err
 	}
 
+	log.Printf("[DEBUG] Sending ROLE_ASSIGNED to player %s: %s", playerID, string(data))
 	h.SendToClient(roomCode, playerID, data)
 	return nil
 }

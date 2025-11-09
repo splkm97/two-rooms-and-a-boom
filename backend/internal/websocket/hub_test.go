@@ -21,8 +21,13 @@ func TestHub_RegisterClient(t *testing.T) {
 	// Give time for registration
 	time.Sleep(100 * time.Millisecond)
 
-	if len(hub.rooms["TEST123"]) != 1 {
-		t.Errorf("Expected 1 client in room, got %d", len(hub.rooms["TEST123"]))
+	// Use mutex to safely access hub.rooms
+	hub.mu.RLock()
+	roomSize := len(hub.rooms["TEST123"])
+	hub.mu.RUnlock()
+
+	if roomSize != 1 {
+		t.Errorf("Expected 1 client in room, got %d", roomSize)
 	}
 }
 
@@ -43,8 +48,13 @@ func TestHub_UnregisterClient(t *testing.T) {
 	hub.unregister <- client
 	time.Sleep(100 * time.Millisecond)
 
-	if len(hub.rooms["TEST456"]) != 0 {
-		t.Errorf("Expected 0 clients in room after unregister, got %d", len(hub.rooms["TEST456"]))
+	// Use mutex to safely access hub.rooms
+	hub.mu.RLock()
+	roomSize := len(hub.rooms["TEST456"])
+	hub.mu.RUnlock()
+
+	if roomSize != 0 {
+		t.Errorf("Expected 0 clients in room after unregister, got %d", roomSize)
 	}
 }
 

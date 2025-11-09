@@ -3,6 +3,7 @@ package handlers
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kalee/two-rooms-and-a-boom/internal/models"
@@ -205,24 +206,77 @@ func (h *RoundHandler) CastVote(c *gin.Context) {
 		return
 	}
 
-	// Convert vote string to type
-	var vote models.VoteChoice
-	if req.Vote == "YES" {
-		vote = models.VoteYes
-	} else if req.Vote == "NO" {
-		vote = models.VoteNo
-	} else {
+	// Validate vote choice (can be YES/NO for removal or candidateID for election)
+	// The service will validate based on vote type
+	if req.Vote == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid vote choice"})
 		return
 	}
 
-	if err := h.votingService.CastVote(roomCode, voteID, playerID, vote); err != nil {
+	if err := h.votingService.CastVote(roomCode, voteID, playerID, req.Vote); err != nil {
 		log.Printf("[ERROR] Failed to cast vote: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "vote cast"})
+}
+
+// GetCurrentVote gets the active vote session for a room color
+// GET /api/v1/rooms/:roomCode/votes/current
+func (h *RoundHandler) GetCurrentVote(c *gin.Context) {
+	roomCode := c.Param("roomCode")
+	roomColorParam := c.Query("roomColor")
+
+	if roomColorParam == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "roomColor query parameter required"})
+		return
+	}
+
+	// Convert room color string to type
+	var roomColor models.RoomColor
+	if roomColorParam == "RED_ROOM" {
+		roomColor = models.RedRoom
+	} else if roomColorParam == "BLUE_ROOM" {
+		roomColor = models.BlueRoom
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid room color"})
+		return
+	}
+
+	session, err := h.votingService.GetActiveVoteForRoom(roomCode, roomColor)
+	if err != nil {
+		log.Printf("[ERROR] Failed to get active vote: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get vote session"})
+		return
+	}
+
+	if session == nil {
+		c.JSON(http.StatusOK, gin.H{"activeVote": nil})
+		return
+	}
+
+	// Calculate time remaining
+	timeRemaining := int(session.ExpiresAt.Sub(time.Now()).Seconds())
+	if timeRemaining < 0 {
+		timeRemaining = 0
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"activeVote": gin.H{
+			"voteId":         session.VoteID,
+			"roomColor":      session.RoomColor,
+			"targetLeaderId": session.TargetLeaderID,
+			"targetLeaderName": session.TargetLeaderName,
+			"initiatorId":    session.InitiatorID,
+			"initiatorName":  session.InitiatorName,
+			"totalVoters":    session.TotalVoters,
+			"votedCount":     len(session.Votes),
+			"timeoutSeconds": session.TimeoutSeconds,
+			"timeRemaining":  timeRemaining,
+			"startedAt":      session.StartedAt.Format(time.RFC3339),
+		},
+	})
 }
 
 // SelectHostagesRequest represents hostage selection request
@@ -271,6 +325,7 @@ func (h *RoundHandler) RegisterRoutes(router *gin.Engine) {
 
 			// Voting
 			rooms.POST("/votes/start", h.StartVote)
+			rooms.GET("/votes/current", h.GetCurrentVote)
 			rooms.POST("/votes/:voteId/cast", h.CastVote)
 
 			// Hostage exchange

@@ -315,12 +315,16 @@ export function RoundHistory({ events }: RoundHistoryProps) {
                                     : '파란 방'}
                                 </span>
                                 :{' '}
+                                {(event.data as LeadershipChangedPayload).oldLeader ? (
+                                  <>
+                                    <strong>
+                                      {(event.data as LeadershipChangedPayload).oldLeader?.nickname}
+                                    </strong>{' '}
+                                    →{' '}
+                                  </>
+                                ) : null}
                                 <strong>
-                                  {(event.data as LeadershipChangedPayload).oldLeader.nickname}
-                                </strong>{' '}
-                                →{' '}
-                                <strong>
-                                  {(event.data as LeadershipChangedPayload).newLeader.nickname}
+                                  {(event.data as LeadershipChangedPayload).newLeader?.nickname || '알 수 없음'}
                                 </strong>
                                 <div
                                   style={{

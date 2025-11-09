@@ -113,6 +113,7 @@ func (vs *VotingService) StartVote(roomCode, initiatorID, targetLeaderID string,
 
 	session := &models.VoteSession{
 		VoteID:           voteID,
+		VoteType:         models.VoteTypeRemoval,
 		GameSessionID:    room.GameSession.ID,
 		RoomColor:        roomColor,
 		TargetLeaderID:   targetLeaderID,
@@ -123,7 +124,7 @@ func (vs *VotingService) StartVote(roomCode, initiatorID, targetLeaderID string,
 		ExpiresAt:        expiresAt,
 		TimeoutSeconds:   30,
 		TotalVoters:      len(roomPlayers),
-		Votes:            make(map[string]models.VoteChoice),
+		Votes:            make(map[string]string),
 		Status:           models.VoteStatusActive,
 	}
 
@@ -160,7 +161,12 @@ func (vs *VotingService) StartVote(roomCode, initiatorID, targetLeaderID string,
 	}
 
 	data, _ := msg.Marshal()
-	vs.hub.BroadcastToRoom(roomCode, data)
+
+	// Broadcast to players in the specific room color (PRIVATE event)
+	playerIDs, err := vs.getPlayerIDsInRoomColor(roomCode, roomColor)
+	if err == nil {
+		vs.hub.BroadcastToRoomColor(roomCode, playerIDs, data)
+	}
 
 	// Start timeout goroutine
 	go vs.handleVoteTimeout(voteID, roomCode, 30*time.Second)
@@ -169,7 +175,7 @@ func (vs *VotingService) StartVote(roomCode, initiatorID, targetLeaderID string,
 }
 
 // CastVote records a player's vote
-func (vs *VotingService) CastVote(roomCode, voteID, playerID string, vote models.VoteChoice) error {
+func (vs *VotingService) CastVote(roomCode, voteID, playerID string, vote string) error {
 	vs.mu.Lock()
 	session, exists := vs.sessions[voteID]
 	if !exists {
@@ -189,10 +195,25 @@ func (vs *VotingService) CastVote(roomCode, voteID, playerID string, vote models
 		return errors.New("player has already voted")
 	}
 
-	// Validate vote choice
-	if vote != models.VoteYes && vote != models.VoteNo {
-		vs.mu.Unlock()
-		return errors.New("invalid vote choice")
+	// Validate vote choice based on vote type
+	if session.VoteType == models.VoteTypeRemoval {
+		if vote != string(models.VoteYes) && vote != string(models.VoteNo) {
+			vs.mu.Unlock()
+			return errors.New("invalid vote choice for removal vote")
+		}
+	} else if session.VoteType == models.VoteTypeElection {
+		// For election, vote should be a candidate ID
+		validCandidate := false
+		for _, candidateID := range session.Candidates {
+			if vote == candidateID {
+				validCandidate = true
+				break
+			}
+		}
+		if !validCandidate {
+			vs.mu.Unlock()
+			return errors.New("invalid candidate ID")
+		}
 	}
 
 	// Record vote
@@ -221,7 +242,12 @@ func (vs *VotingService) CastVote(roomCode, voteID, playerID string, vote models
 	}
 
 	data, _ := msg.Marshal()
-	vs.hub.BroadcastToRoom(roomCode, data)
+
+	// Broadcast to players in the specific room color (PRIVATE event)
+	playerIDs, err := vs.getPlayerIDsInRoomColor(roomCode, session.RoomColor)
+	if err == nil {
+		vs.hub.BroadcastToRoomColor(roomCode, playerIDs, data)
+	}
 
 	// Check if all players have voted
 	if len(session.Votes) == session.TotalVoters {
@@ -251,39 +277,67 @@ func (vs *VotingService) CompleteVote(roomCode, voteID string) error {
 	session.Status = models.VoteStatusCompleted
 	vs.mu.Unlock()
 
-	// Calculate results
-	yesVotes := 0
-	noVotes := 0
-
-	for _, vote := range session.Votes {
-		if vote == models.VoteYes {
-			yesVotes++
-		} else {
-			noVotes++
-		}
-	}
-
-	// Determine result (>50% YES to pass)
+	// Calculate results based on vote type
 	result := models.VoteResultFailed
 	var newLeader *models.Player
 	var err error
+	yesVotes := 0
+	noVotes := 0
 
-	if yesVotes > session.TotalVoters/2 {
-		result = models.VoteResultPassed
+	if session.VoteType == models.VoteTypeRemoval {
+		// Calculate YES/NO votes for removal
+		for _, vote := range session.Votes {
+			if vote == string(models.VoteYes) {
+				yesVotes++
+			} else {
+				noVotes++
+			}
+		}
 
-		// Assign new leader
-		newLeader, err = vs.leaderService.AssignNewLeader(roomCode, session.RoomColor, session.TargetLeaderID)
-		if err != nil {
-			log.Printf("[ERROR] Failed to assign new leader after vote: %v", err)
-			result = models.VoteResultFailed
+		// Determine result (>50% YES to pass)
+		if yesVotes > session.TotalVoters/2 {
+			result = models.VoteResultPassed
+			// Note: Election vote will be started after broadcasting VOTE_COMPLETED
+			// to ensure proper sequencing and avoid race conditions
+		}
+	} else if session.VoteType == models.VoteTypeElection {
+		// Count votes for each candidate
+		voteCounts := make(map[string]int)
+		for _, vote := range session.Votes {
+			voteCounts[vote]++
+		}
+
+		// Find candidate with most votes
+		var winnerID string
+		maxVotes := 0
+		for candidateID, count := range voteCounts {
+			if count > maxVotes {
+				maxVotes = count
+				winnerID = candidateID
+			}
+		}
+
+		if winnerID != "" {
+			result = models.VoteResultPassed
+			// Assign the elected leader
+			newLeader, err = vs.leaderService.SetLeader(roomCode, session.RoomColor, winnerID)
+			if err != nil {
+				log.Printf("[ERROR] Failed to assign elected leader: %v", err)
+				result = models.VoteResultFailed
+			}
 		}
 	}
 
-	// Clean up
-	vs.mu.Lock()
-	roomKey := getRoomVoteKey(roomCode, session.RoomColor)
-	delete(vs.roomVotes, roomKey)
-	vs.mu.Unlock()
+	// Clean up - but only if NOT starting an election vote
+	// For removal votes that pass, we'll let the election vote handle cleanup
+	shouldCleanup := !(session.VoteType == models.VoteTypeRemoval && result == models.VoteResultPassed)
+
+	if shouldCleanup {
+		vs.mu.Lock()
+		roomKey := getRoomVoteKey(roomCode, session.RoomColor)
+		delete(vs.roomVotes, roomKey)
+		vs.mu.Unlock()
+	}
 
 	log.Printf("[INFO] Vote completed: voteID=%s result=%s yes=%d no=%d",
 		voteID, result, yesVotes, noVotes)
@@ -328,9 +382,14 @@ func (vs *VotingService) CompleteVote(roomCode, voteID string) error {
 	}
 
 	data, _ := msg.Marshal()
-	vs.hub.BroadcastToRoom(roomCode, data)
 
-	// If vote passed, broadcast LEADERSHIP_CHANGED
+	// Broadcast to players in the specific room color (PRIVATE event)
+	playerIDs, err := vs.getPlayerIDsInRoomColor(roomCode, session.RoomColor)
+	if err == nil {
+		vs.hub.BroadcastToRoomColor(roomCode, playerIDs, data)
+	}
+
+	// If vote passed, broadcast LEADERSHIP_CHANGED (also PRIVATE)
 	if result == models.VoteResultPassed && newLeader != nil {
 		leadershipPayload := &websocket.LeadershipChangedPayload{
 			RoomColor: session.RoomColor,
@@ -345,7 +404,27 @@ func (vs *VotingService) CompleteVote(roomCode, voteID string) error {
 
 		leaderMsg, _ := websocket.NewMessage(websocket.MessageLeadershipChanged, leadershipPayload)
 		leaderData, _ := leaderMsg.Marshal()
-		vs.hub.BroadcastToRoom(roomCode, leaderData)
+
+		// Also broadcast to room color only
+		if err == nil {
+			vs.hub.BroadcastToRoomColor(roomCode, playerIDs, leaderData)
+		}
+	}
+
+	// If removal vote passed, start election vote after delay
+	// Wait 7 seconds to give players time to see the result and prepare for election
+	if session.VoteType == models.VoteTypeRemoval && result == models.VoteResultPassed {
+		log.Printf("[INFO] Removal passed, will start election after 7 second delay: room=%s", roomCode)
+		time.Sleep(7 * time.Second) // Give players time to see result and prepare
+
+		if _, err := vs.StartElectionVote(roomCode, session.RoomColor, session.TargetLeaderID); err != nil {
+			log.Printf("[ERROR] Failed to start election vote: %v", err)
+			// Clean up the old vote entry if election failed to start
+			vs.mu.Lock()
+			roomKey := getRoomVoteKey(roomCode, session.RoomColor)
+			delete(vs.roomVotes, roomKey)
+			vs.mu.Unlock()
+		}
 	}
 
 	return nil
@@ -368,18 +447,49 @@ func (vs *VotingService) handleVoteTimeout(voteID, roomCode string, timeout time
 	delete(vs.roomVotes, roomKey)
 	vs.mu.Unlock()
 
-	log.Printf("[INFO] Vote timed out: voteID=%s voted=%d/%d",
-		voteID, len(session.Votes), session.TotalVoters)
+	log.Printf("[INFO] Vote timed out: voteID=%s voted=%d/%d type=%s",
+		voteID, len(session.Votes), session.TotalVoters, session.VoteType)
 
 	// Calculate partial results
 	yesVotes := 0
 	noVotes := 0
+	removalPassed := false
 
-	for _, vote := range session.Votes {
-		if vote == models.VoteYes {
-			yesVotes++
-		} else {
-			noVotes++
+	if session.VoteType == models.VoteTypeRemoval {
+		for _, vote := range session.Votes {
+			if vote == string(models.VoteYes) {
+				yesVotes++
+			} else {
+				noVotes++
+			}
+		}
+
+		// Check if removal passes despite timeout (YES > NO)
+		if yesVotes > noVotes {
+			removalPassed = true
+			log.Printf("[INFO] Removal vote passed on timeout: YES=%d > NO=%d", yesVotes, noVotes)
+		}
+	} else if session.VoteType == models.VoteTypeElection {
+		// For election timeout, pick the candidate with most votes
+		voteCounts := make(map[string]int)
+		for _, vote := range session.Votes {
+			voteCounts[vote]++
+		}
+
+		var winnerID string
+		maxVotes := 0
+		for candidateID, count := range voteCounts {
+			if count > maxVotes {
+				maxVotes = count
+				winnerID = candidateID
+			}
+		}
+
+		// If there's a winner, assign them as leader
+		if winnerID != "" {
+			if newLeader, err := vs.leaderService.SetLeader(roomCode, session.RoomColor, winnerID); err == nil {
+				log.Printf("[INFO] Leader elected after timeout: %s", newLeader.Nickname)
+			}
 		}
 	}
 
@@ -390,24 +500,34 @@ func (vs *VotingService) handleVoteTimeout(voteID, roomCode string, timeout time
 	}
 
 	var targetLeaderInfo *websocket.LeaderInfo
-	for _, player := range room.Players {
-		if player.ID == session.TargetLeaderID {
-			targetLeaderInfo = &websocket.LeaderInfo{
-				ID:       player.ID,
-				Nickname: player.Nickname,
+	if session.TargetLeaderID != "" {
+		for _, player := range room.Players {
+			if player.ID == session.TargetLeaderID {
+				targetLeaderInfo = &websocket.LeaderInfo{
+					ID:       player.ID,
+					Nickname: player.Nickname,
+				}
+				break
 			}
-			break
 		}
 	}
 
-	// Broadcast VOTE_COMPLETED with TIMEOUT result
+	// Determine result based on removal status
+	voteResult := models.VoteResultTimeout
+	reason := "TIMEOUT"
+	if removalPassed {
+		voteResult = models.VoteResultPassed
+		reason = "PASSED_ON_TIMEOUT"
+	}
+
+	// Broadcast VOTE_COMPLETED with appropriate result
 	payload := &websocket.VoteCompletedPayload{
 		VoteID:       voteID,
-		Result:       models.VoteResultTimeout,
+		Result:       voteResult,
 		YesVotes:     yesVotes,
 		NoVotes:      noVotes,
 		TargetLeader: targetLeaderInfo,
-		Reason:       "TIMEOUT",
+		Reason:       reason,
 	}
 
 	msg, err := websocket.NewMessage(websocket.MessageVoteCompleted, payload)
@@ -416,7 +536,22 @@ func (vs *VotingService) handleVoteTimeout(voteID, roomCode string, timeout time
 	}
 
 	data, _ := msg.Marshal()
-	vs.hub.BroadcastToRoom(roomCode, data)
+
+	// Broadcast to players in the specific room color (PRIVATE event)
+	playerIDs, err := vs.getPlayerIDsInRoomColor(roomCode, session.RoomColor)
+	if err == nil {
+		vs.hub.BroadcastToRoomColor(roomCode, playerIDs, data)
+	}
+
+	// If removal passed on timeout, trigger election vote
+	if removalPassed {
+		log.Printf("[INFO] Triggering election vote after timeout removal: room=%s", roomCode)
+		time.Sleep(7 * time.Second) // Wait 7 seconds for UI to show result and give players time to prepare
+
+		if _, err := vs.StartElectionVote(roomCode, session.RoomColor, session.TargetLeaderID); err != nil {
+			log.Printf("[ERROR] Failed to start election after timeout: %v", err)
+		}
+	}
 }
 
 // GetVoteSession retrieves a vote session by ID
@@ -467,6 +602,23 @@ func (vs *VotingService) CanStartVote(roomCode string, roomColor models.RoomColo
 	return !vs.HasActiveVote(roomCode, roomColor)
 }
 
+// getPlayerIDsInRoomColor gets all player IDs in a specific room color
+func (vs *VotingService) getPlayerIDsInRoomColor(roomCode string, roomColor models.RoomColor) ([]string, error) {
+	room, err := vs.store.Get(roomCode)
+	if err != nil {
+		return nil, err
+	}
+
+	var playerIDs []string
+	for _, player := range room.Players {
+		if player.CurrentRoom == roomColor {
+			playerIDs = append(playerIDs, player.ID)
+		}
+	}
+
+	return playerIDs, nil
+}
+
 // cleanupExpiredSessions removes expired vote sessions
 func (vs *VotingService) cleanupExpiredSessions() {
 	ticker := time.NewTicker(10 * time.Second)
@@ -486,6 +638,133 @@ func (vs *VotingService) cleanupExpiredSessions() {
 
 		vs.mu.Unlock()
 	}
+}
+
+// GetActiveVoteForRoom returns the active vote session for a specific room color
+func (vs *VotingService) GetActiveVoteForRoom(roomCode string, roomColor models.RoomColor) (*models.VoteSession, error) {
+	vs.mu.RLock()
+	defer vs.mu.RUnlock()
+
+	roomKey := getRoomVoteKey(roomCode, roomColor)
+	voteID, exists := vs.roomVotes[roomKey]
+	if !exists {
+		return nil, nil // No active vote, not an error
+	}
+
+	session, exists := vs.sessions[voteID]
+	if !exists || session.Status != models.VoteStatusActive {
+		return nil, nil // Session expired or completed
+	}
+
+	return session, nil
+}
+
+// StartElectionVote initiates a leader election vote
+func (vs *VotingService) StartElectionVote(roomCode string, roomColor models.RoomColor, excludePlayerID string) (string, error) {
+	room, err := vs.store.Get(roomCode)
+	if err != nil {
+		return "", err
+	}
+
+	if room.GameSession == nil || room.GameSession.RoundState == nil {
+		return "", errors.New("no active round")
+	}
+
+	// Get eligible candidates (all players in room except removed leader)
+	var candidates []*models.Player
+	var removedLeader *models.Player
+	for _, player := range room.Players {
+		if player.CurrentRoom == roomColor {
+			if player.ID == excludePlayerID {
+				removedLeader = player
+			} else {
+				candidates = append(candidates, player)
+			}
+		}
+	}
+
+	if len(candidates) == 0 {
+		return "", errors.New("no eligible candidates")
+	}
+
+	// Create election vote session
+	voteID := uuid.New().String()
+	now := time.Now()
+	expiresAt := now.Add(30 * time.Second)
+
+	candidateIDs := make([]string, len(candidates))
+	for i, candidate := range candidates {
+		candidateIDs[i] = candidate.ID
+	}
+
+	session := &models.VoteSession{
+		VoteID:         voteID,
+		VoteType:       models.VoteTypeElection,
+		GameSessionID:  room.GameSession.ID,
+		RoomColor:      roomColor,
+		InitiatorID:    "",  // System-initiated
+		InitiatorName:  "시스템", // System
+		Candidates:     candidateIDs,
+		StartedAt:      now,
+		ExpiresAt:      expiresAt,
+		TimeoutSeconds: 30,
+		TotalVoters:    len(candidates), // All candidates can vote
+		Votes:          make(map[string]string),
+		Status:         models.VoteStatusActive,
+	}
+
+	// Store session - this atomically replaces any previous vote for this room
+	// When called after a removal vote, this ensures zero race condition for refreshing players
+	vs.mu.Lock()
+	vs.sessions[voteID] = session
+	roomKey := getRoomVoteKey(roomCode, roomColor)
+	vs.roomVotes[roomKey] = voteID // Atomically replaces the removal vote entry
+	vs.mu.Unlock()
+
+	log.Printf("[INFO] Election vote started: room=%s voteID=%s candidates=%d",
+		roomCode, voteID, len(candidates))
+
+	// Broadcast VOTE_SESSION_STARTED for election
+	payload := &websocket.VoteSessionStartedPayload{
+		VoteID:    voteID,
+		RoomColor: roomColor,
+		// For election, show the removed leader as "previous leader"
+		TargetLeader: &websocket.LeaderInfo{
+			ID:       excludePlayerID,
+			Nickname: func() string {
+				if removedLeader != nil {
+					return removedLeader.Nickname
+				}
+				return ""
+			}(),
+		},
+		Initiator: &websocket.LeaderInfo{
+			ID:       "",
+			Nickname: "시스템",
+		},
+		Candidates:     candidateIDs,     // Include candidate IDs for election
+		TotalVoters:    len(candidates),
+		TimeoutSeconds: 30,
+		StartedAt:      now.Format(time.RFC3339),
+	}
+
+	msg, err := websocket.NewMessage(websocket.MessageVoteSessionStarted, payload)
+	if err != nil {
+		return "", err
+	}
+
+	data, _ := msg.Marshal()
+
+	// Broadcast to players in the specific room color
+	playerIDs, err := vs.getPlayerIDsInRoomColor(roomCode, roomColor)
+	if err == nil {
+		vs.hub.BroadcastToRoomColor(roomCode, playerIDs, data)
+	}
+
+	// Start timeout goroutine
+	go vs.handleVoteTimeout(voteID, roomCode, 30*time.Second)
+
+	return voteID, nil
 }
 
 // getRoomVoteKey generates a unique key for room+color

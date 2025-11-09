@@ -169,24 +169,60 @@ func (s *PlayerService) LeaveRoom(roomCode, playerID string) error {
 		return models.ErrPlayerNotFound
 	}
 
-	// If the leaving player is the owner, delete the entire room
+	// If the leaving player is the owner, delete the room only if game is not in progress
 	if wasOwner {
-		if err := s.roomStore.Delete(roomCode); err != nil {
-			fmt.Printf("[WARN] Failed to delete room %s after owner left: %v\n", roomCode, err)
-			return err
-		}
-		fmt.Printf("[INFO] Deleted room %s because owner left\n", roomCode)
+		// Don't delete room during active games - let players continue
+		if room.Status != models.RoomStatusInProgress {
+			if err := s.roomStore.Delete(roomCode); err != nil {
+				fmt.Printf("[WARN] Failed to delete room %s after owner left: %v\n", roomCode, err)
+				return err
+			}
+			fmt.Printf("[INFO] Deleted room %s because owner left\n", roomCode)
 
-		// Broadcast ROOM_CLOSED event to all players in the room
+			// Broadcast ROOM_CLOSED event to all players in the room
+			if s.hub != nil {
+				if err := s.hub.BroadcastRoomClosed(roomCode); err != nil {
+					fmt.Printf("[WARN] Failed to broadcast ROOM_CLOSED: %v\n", err)
+				}
+			}
+			return nil
+		}
+
+		// If game is in progress, keep room and player intact
+		// Owner can rejoin by refreshing - their player record stays in the room
+		fmt.Printf("[INFO] Owner left room %s during active game - keeping room and player alive for rejoin\n", roomCode)
+
+		// Broadcast PLAYER_LEFT event so other players know they disconnected
 		if s.hub != nil {
-			if err := s.hub.BroadcastRoomClosed(roomCode); err != nil {
-				fmt.Printf("[WARN] Failed to broadcast ROOM_CLOSED: %v\n", err)
+			payload := &ws.PlayerLeftPayload{
+				PlayerID: playerID,
+			}
+			if err := s.hub.BroadcastPlayerLeft(roomCode, payload); err != nil {
+				fmt.Printf("[WARN] Failed to broadcast PLAYER_LEFT: %v\n", err)
 			}
 		}
+
 		return nil
 	}
 
-	// Remove player from room
+	// If game is in progress, keep player in room for potential rejoin
+	if room.Status == models.RoomStatusInProgress {
+		fmt.Printf("[INFO] Player %s left room %s during active game - keeping player alive for rejoin\n", playerID, roomCode)
+
+		// Broadcast PLAYER_LEFT event so other players know they disconnected
+		if s.hub != nil {
+			payload := &ws.PlayerLeftPayload{
+				PlayerID: playerID,
+			}
+			if err := s.hub.BroadcastPlayerLeft(roomCode, payload); err != nil {
+				fmt.Printf("[WARN] Failed to broadcast PLAYER_LEFT: %v\n", err)
+			}
+		}
+
+		return nil
+	}
+
+	// Remove player from room (only if game is not in progress)
 	room.Players = append(room.Players[:playerIndex], room.Players[playerIndex+1:]...)
 	room.UpdatedAt = time.Now()
 

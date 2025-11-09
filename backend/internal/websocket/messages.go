@@ -142,6 +142,7 @@ type VoteSessionStartedPayload struct {
 	RoomColor      models.RoomColor `json:"roomColor"`
 	TargetLeader   *LeaderInfo      `json:"targetLeader"`
 	Initiator      *LeaderInfo      `json:"initiator"`
+	Candidates     []string         `json:"candidates,omitempty"` // For election votes
 	TotalVoters    int              `json:"totalVoters"`
 	TimeoutSeconds int              `json:"timeoutSeconds"`
 	StartedAt      string           `json:"startedAt"`

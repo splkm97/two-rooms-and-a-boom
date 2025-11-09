@@ -10,9 +10,9 @@ import { RoleListSidebar } from '../components/role/RoleListSidebar';
 import { RoundTimer } from '../components/game/RoundTimer';
 import { LeaderPanel } from '../components/game/LeaderPanel';
 import { LeaderTransferModal } from '../components/game/LeaderTransferModal';
-import { VoteDialog } from '../components/game/VoteDialog';
 import { ExchangeAnimation } from '../components/game/ExchangeAnimation';
 import { RoundHistory } from '../components/game/RoundHistory';
+import { VotePage } from '../components/game/VotePage';
 import { useWebSocket } from '../hooks/useWebSocket';
 import {
   getRoom,
@@ -21,6 +21,11 @@ import {
   startGame,
   leaveRoom,
   resetGame,
+  transferLeadership,
+  getCurrentRound,
+  startVote,
+  castVote,
+  getCurrentVote,
   APIError,
 } from '../services/api';
 import type {
@@ -39,15 +44,15 @@ import type {
   TimerTickPayload,
   RoundEndedPayload,
   LeadershipChangedPayload,
+  LeaderAnnouncedHostagesPayload,
+  ExchangeCompletePayload,
+  ExchangeRecord,
+  LeaderInfo,
+  VoteSession,
   VoteSessionStartedPayload,
   VoteProgressPayload,
   VoteResultPayload,
-  LeaderAnnouncedHostagesPayload,
-  ExchangeCompletePayload,
-  VoteSession,
   VoteChoice,
-  ExchangeRecord,
-  LeaderInfo,
 } from '../types/game.types';
 
 /**
@@ -99,7 +104,6 @@ export function RoomPage() {
   const [activeVoteSession, setActiveVoteSession] = useState<VoteSession | null>(null);
   const [voteResult, setVoteResult] = useState<VoteResultPayload | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
-  const [showVoteDialog, setShowVoteDialog] = useState(false);
 
   // Exchange state
   const [showExchangeAnimation, setShowExchangeAnimation] = useState(false);
@@ -158,20 +162,26 @@ export function RoomPage() {
 
         // Check if we already have a playerId for this room
         const storedPlayerId = localStorage.getItem(`playerId_${roomCode}`);
+        console.log('[DEBUG] storedPlayerId:', storedPlayerId);
+        console.log('[DEBUG] roomData.players:', roomData.players.map((p: Player) => ({id: p.id, nickname: p.nickname})));
 
         let player;
         if (storedPlayerId) {
           // Try to find existing player in room
           const existingPlayer = roomData.players.find((p: Player) => p.id === storedPlayerId);
+          console.log('[DEBUG] existingPlayer found:', existingPlayer ? 'YES' : 'NO');
           if (existingPlayer) {
+            console.log('[DEBUG] Using existing player:', existingPlayer.id, existingPlayer.nickname);
             player = existingPlayer;
           } else {
+            console.log('[DEBUG] Player not in room, calling joinRoom()');
             // Player ID exists but not in room anymore, join again
             player = await joinRoom(roomCode);
             localStorage.setItem(`playerId_${roomCode}`, player.id);
             localStorage.setItem(`isOwner_${roomCode}`, String(player.isOwner));
           }
         } else {
+          console.log('[DEBUG] No storedPlayerId, calling joinRoom()');
           // Join the room for the first time
           player = await joinRoom(roomCode);
           localStorage.setItem(`playerId_${roomCode}`, player.id);
@@ -185,7 +195,7 @@ export function RoomPage() {
         const updatedRoom = await getRoom(roomCode);
         setRoom(updatedRoom as Room);
 
-        // If game is in progress, load role data
+        // If game is in progress, load role data and round state
         if (updatedRoom.status === 'IN_PROGRESS' && player) {
           const currentPlayerData = updatedRoom.players.find((p: Player) => p.id === player.id);
           if (currentPlayerData?.role) {
@@ -199,11 +209,93 @@ export function RoomPage() {
             );
             setRedRoomPlayers(redPlayers);
             setBlueRoomPlayers(bluePlayers);
+
+            // Fetch current round state to restore leader information
+            let hasActiveVote = false;
+            try {
+              const roundState = await getCurrentRound(roomCode);
+              setCurrentRound(roundState.roundNumber);
+              setTimeRemaining(roundState.timeRemaining);
+              setTotalRoundTime(roundState.duration);
+              setHostageCount(roundState.hostageCount);
+
+              // Find leader players from the room data
+              if (roundState.redLeader) {
+                const redLeaderPlayer = updatedRoom.players.find((p: Player) => p.id === roundState.redLeader);
+                if (redLeaderPlayer) {
+                  setRedLeader({ id: redLeaderPlayer.id, nickname: redLeaderPlayer.nickname });
+                }
+              }
+
+              if (roundState.blueLeader) {
+                const blueLeaderPlayer = updatedRoom.players.find((p: Player) => p.id === roundState.blueLeader);
+                if (blueLeaderPlayer) {
+                  setBlueLeader({ id: blueLeaderPlayer.id, nickname: blueLeaderPlayer.nickname });
+                }
+              }
+
+              // Restore active vote session if exists
+              if (currentPlayerData.currentRoom) {
+                try {
+                  const voteData = await getCurrentVote(roomCode, currentPlayerData.currentRoom);
+                  if (voteData.activeVote) {
+                    hasActiveVote = true;
+                    setActiveVoteSession({
+                      voteID: voteData.activeVote.voteId,
+                      roomColor: voteData.activeVote.roomColor as RoomColor,
+                      voteType: voteData.activeVote.voteType,
+                      targetLeaderId: voteData.activeVote.targetLeaderId,
+                      targetLeaderName: voteData.activeVote.targetLeaderName,
+                      initiatorId: voteData.activeVote.initiatorId,
+                      initiatorName: voteData.activeVote.initiatorName,
+                      candidates: voteData.activeVote.candidates,
+                      totalVoters: voteData.activeVote.totalVoters,
+                      votedCount: voteData.activeVote.votedCount,
+                      timeoutSeconds: voteData.activeVote.timeoutSeconds,
+                      status: 'ACTIVE',
+                      gameSessionId: '',
+                      startedAt: voteData.activeVote.startedAt,
+                      expiresAt: '',
+                    });
+                    setHasVoted(false);
+                    setVoteResult(null);
+                    setCanTransferLeadership(false);
+                    // Always navigate to ?view=vote (VotePage handles both REMOVAL and ELECTION)
+                    setSearchParams({ view: 'vote' });
+                  }
+                } catch (err) {
+                  console.error('Failed to restore vote session:', err);
+                }
+              }
+            } catch (err) {
+              console.error('Failed to fetch round state:', err);
+            }
+
+            // Switch to game view only if there's no active vote
+            if (!hasActiveVote) {
+              setSearchParams({ view: 'game' });
+            }
+
+            // Restore history from localStorage
+            try {
+              const savedHistory = localStorage.getItem(`history_${roomCode}`);
+              if (savedHistory) {
+                const parsedHistory = JSON.parse(savedHistory);
+                setHistoryEvents(parsedHistory);
+              }
+            } catch (err) {
+              console.error('Failed to restore history:', err);
+            }
           }
         }
 
         setLoading(false);
       } catch (err) {
+        console.error('[ERROR] Failed to initialize room:', err);
+        if (err instanceof Error) {
+          console.error('[ERROR] Error message:', err.message);
+          console.error('[ERROR] Error stack:', err.stack);
+        }
         setError(err instanceof APIError ? err.userMessage : '방 입장에 실패했습니다');
         setLoading(false);
       } finally {
@@ -215,11 +307,23 @@ export function RoomPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode]); // Note: Don't include view or setSearchParams to avoid re-joining
 
+  // Save history to localStorage whenever it changes
+  useEffect(() => {
+    if (roomCode && historyEvents.length > 0) {
+      try {
+        localStorage.setItem(`history_${roomCode}`, JSON.stringify(historyEvents));
+      } catch (err) {
+        console.error('Failed to save history:', err);
+      }
+    }
+  }, [roomCode, historyEvents]);
+
   // Handle WebSocket messages
   useEffect(() => {
     if (!lastMessage) return;
 
     try {
+      console.log('[WebSocket] Received message:', lastMessage.type, lastMessage.payload);
       switch (lastMessage.type) {
         case 'PLAYER_JOINED': {
           const { player } = lastMessage.payload as PlayerJoinedPayload;
@@ -354,6 +458,10 @@ export function RoomPage() {
           setBlueLeader(null);
           setSelectionLocked(false);
           setHistoryEvents([]);
+          // Clear history from localStorage
+          if (roomCode) {
+            localStorage.removeItem(`history_${roomCode}`);
+          }
           // Reset the role assigned flag so next game can process it
           roleAssignedProcessedRef.current = false;
           break;
@@ -398,80 +506,103 @@ export function RoomPage() {
             setBlueLeader(payload.newLeader);
           }
 
-          // Add to history
-          setHistoryEvents((prev) => [
-            ...prev,
-            {
-              type: 'leadership_change',
-              roundNumber: currentRound,
-              timestamp: payload.timestamp,
-              data: payload,
-            },
-          ]);
+          // Add to history (check for duplicates by timestamp)
+          setHistoryEvents((prev) => {
+            const exists = prev.some(
+              (event) =>
+                event.type === 'leadership_change' &&
+                event.timestamp === payload.timestamp &&
+                (event.data as LeadershipChangedPayload).roomColor === payload.roomColor
+            );
+            if (exists) return prev;
+
+            return [
+              ...prev,
+              {
+                type: 'leadership_change',
+                roundNumber: currentRound,
+                timestamp: payload.timestamp,
+                data: payload,
+              },
+            ];
+          });
 
           // Close transfer modal if open
           setShowTransferModal(false);
+
+          // If this was from a vote (VOTE_REMOVAL reason), redirect to game view
+          if (payload.reason === 'VOTE_REMOVAL') {
+            // Clear vote state
+            setActiveVoteSession(null);
+            setHasVoted(false);
+            setVoteResult(null);
+            // Redirect to game view
+            setSearchParams({ view: 'game' });
+          }
           break;
         }
 
         // Vote events
         case 'VOTE_SESSION_STARTED': {
           const payload = lastMessage.payload as VoteSessionStartedPayload;
+          // Detect vote type: ELECTION if candidates array exists and has items, otherwise REMOVAL
+          const isElection = payload.candidates && payload.candidates.length > 0;
+          console.log('[VOTE_SESSION_STARTED] isElection:', isElection, 'candidates:', payload.candidates);
+
           setActiveVoteSession({
-            voteID: payload.voteID,
-            gameSessionId: roomCode || '',
+            voteID: payload.voteId, // Note: backend sends camelCase 'voteId'
             roomColor: payload.roomColor,
-            targetLeaderId: payload.targetLeader.id,
-            targetLeaderName: payload.targetLeader.nickname,
-            initiatorId: payload.initiator.id,
-            initiatorName: payload.initiator.nickname,
-            startedAt: payload.startedAt,
-            expiresAt: new Date(
-              new Date(payload.startedAt).getTime() + payload.timeoutSeconds * 1000
-            ).toISOString(),
-            timeoutSeconds: payload.timeoutSeconds,
+            voteType: isElection ? 'ELECTION' : 'REMOVAL',
+            targetLeaderId: payload.targetLeader?.id || '',
+            targetLeaderName: payload.targetLeader?.nickname || '',
+            initiatorId: payload.initiator?.id || '',
+            initiatorName: payload.initiator?.nickname || '',
+            candidates: payload.candidates || [], // Use candidates from backend
             totalVoters: payload.totalVoters,
             votedCount: 0,
+            timeoutSeconds: payload.timeoutSeconds,
             status: 'ACTIVE',
+            gameSessionId: '',
+            startedAt: payload.startedAt,
+            expiresAt: '',
           });
           setHasVoted(false);
           setVoteResult(null);
-          setShowVoteDialog(true);
           setCanTransferLeadership(false);
+
+          // Always navigate to ?view=vote (VotePage handles both REMOVAL and ELECTION)
+          setSearchParams({ view: 'vote' });
           break;
         }
 
         case 'VOTE_PROGRESS': {
           const payload = lastMessage.payload as VoteProgressPayload;
-          setActiveVoteSession((prev) => {
-            if (!prev || prev.voteID !== payload.voteID) return prev;
-            return {
-              ...prev,
-              votedCount: payload.votedCount,
-            };
-          });
+          setActiveVoteSession((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  votedCount: payload.votedCount,
+                }
+              : null
+          );
           break;
         }
 
         case 'VOTE_COMPLETED': {
           const payload = lastMessage.payload as VoteResultPayload;
+          console.log('[VOTE_COMPLETED] Received:', payload);
           setVoteResult(payload);
-          setActiveVoteSession((prev) => {
-            if (!prev) return prev;
-            return {
-              ...prev,
-              status: 'COMPLETED',
-            };
-          });
+          setCanTransferLeadership(true);
 
-          // Auto-close vote dialog after 5 seconds
+          // Always navigate back to game after 3 seconds
+          // If removal PASSED, election will auto-start and navigate to ?view=election
+          console.log('[VOTE_COMPLETED] Will navigate back to game in 3s');
           setTimeout(() => {
-            setShowVoteDialog(false);
+            setSearchParams({ view: 'game' });
             setActiveVoteSession(null);
             setVoteResult(null);
             setHasVoted(false);
-            setCanTransferLeadership(true);
-          }, 5000);
+          }, 3000);
           break;
         }
 
@@ -494,21 +625,35 @@ export function RoomPage() {
           setShowExchangeAnimation(true);
           setSelectionLocked(false);
 
-          // Add exchanges to history
+          // Add exchanges to history (check for duplicates)
           const newHistoryEvents = payload.exchanges.map((exchange) => ({
             type: 'exchange' as const,
             roundNumber: payload.roundNumber,
             timestamp: exchange.timestamp,
             data: exchange,
           }));
-          setHistoryEvents((prev) => [...prev, ...newHistoryEvents]);
+
+          setHistoryEvents((prev) => {
+            // Filter out events that already exist (by playerID + timestamp)
+            const filteredNew = newHistoryEvents.filter((newEvent) => {
+              return !prev.some(
+                (existingEvent) =>
+                  existingEvent.type === 'exchange' &&
+                  existingEvent.timestamp === newEvent.timestamp &&
+                  (existingEvent.data as ExchangeRecord).playerId ===
+                    (newEvent.data as ExchangeRecord).playerId
+              );
+            });
+
+            return [...prev, ...filteredNew];
+          });
           break;
         }
       }
     } catch {
       // Error handling
     }
-  }, [lastMessage, roomCode, setSearchParams, navigate, currentRound, currentPlayer, redLeader, blueLeader]);
+  }, [lastMessage, roomCode, setSearchParams, navigate, currentRound, currentPlayer, redLeader, blueLeader, redRoomPlayers, blueRoomPlayers]);
 
   const handleNicknameUpdate = async (newNickname: string) => {
     if (!roomCode || !currentPlayer) {
@@ -580,45 +725,47 @@ export function RoomPage() {
     });
   };
 
-  const handleTransferLeadership = (newLeaderId: string) => {
-    if (!currentRoom || !sendMessage) return;
+  const handleTransferLeadership = async (newLeaderId: string) => {
+    if (!roomCode || !currentPlayer?.id) return;
 
-    sendMessage({
-      type: 'LEADER_TRANSFERRED',
-      payload: {
-        roomColor: currentRoom,
-        newLeaderId: newLeaderId,
-      },
-    });
+    try {
+      await transferLeadership(roomCode, currentPlayer.id, newLeaderId);
+      setShowTransferModal(false);
+      // The WebSocket LEADERSHIP_CHANGED event will update the UI
+    } catch (error) {
+      console.error('Failed to transfer leadership:', error);
+      alert('리더 이양에 실패했습니다.');
+    }
   };
 
-  const handleStartVote = () => {
-    if (!currentRoom || !sendMessage) return;
+  const handleStartVote = async () => {
+    if (!currentRoom || !roomCode || !currentPlayer) return;
 
     const leader = currentRoom === 'RED_ROOM' ? redLeader : blueLeader;
-    if (!leader) return;
+    if (!leader) {
+      alert('리더가 없습니다.');
+      return;
+    }
 
-    sendMessage({
-      type: 'VOTE_REMOVE_LEADER_STARTED',
-      payload: {
-        roomColor: currentRoom,
-        targetLeaderId: leader.id,
-      },
-    });
+    try {
+      await startVote(roomCode, currentPlayer.id, currentRoom, leader.id);
+      // Vote session will start via WebSocket event
+    } catch (error) {
+      console.error('Failed to start vote:', error);
+      alert(error instanceof APIError ? error.userMessage : '투표 시작에 실패했습니다.');
+    }
   };
 
-  const handleVote = (vote: VoteChoice) => {
-    if (!activeVoteSession || !sendMessage) return;
+  const handleVote = async (vote: VoteChoice | string) => {
+    if (!activeVoteSession || !roomCode || !currentPlayer) return;
 
-    sendMessage({
-      type: 'VOTE_CAST',
-      payload: {
-        voteID: activeVoteSession.voteID,
-        vote: vote,
-      },
-    });
-
-    setHasVoted(true);
+    try {
+      await castVote(roomCode, activeVoteSession.voteID, currentPlayer.id, vote);
+      setHasVoted(true);
+    } catch (error) {
+      console.error('Failed to cast vote:', error);
+      alert(error instanceof APIError ? error.userMessage : '투표에 실패했습니다.');
+    }
   };
 
   const handleExchangeAnimationComplete = () => {
@@ -942,6 +1089,29 @@ export function RoomPage() {
     );
   }
 
+  // Render vote view (handles both REMOVAL and ELECTION in single view)
+  if (view === 'vote') {
+    if (!activeVoteSession || !currentPlayer || !currentRoom) {
+      // No active vote, redirect back to game
+      setSearchParams({ view: 'game' });
+      return null;
+    }
+
+    const playersInRoom = currentRoom === 'RED_ROOM' ? redRoomPlayers : blueRoomPlayers;
+
+    return (
+      <VotePage
+        voteSession={activeVoteSession}
+        voteResult={voteResult}
+        hasVoted={hasVoted}
+        players={playersInRoom}
+        currentPlayer={currentPlayer}
+        onVote={handleVote}
+        onClose={() => setSearchParams({ view: 'game' })}
+      />
+    );
+  }
+
   // Render game view
   if (view === 'game') {
     if (!role || !team || !currentRoom) {
@@ -976,15 +1146,6 @@ export function RoomPage() {
           isActive={showExchangeAnimation}
           exchanges={exchangeRecords}
           onComplete={handleExchangeAnimationComplete}
-        />
-
-        {/* Vote Dialog */}
-        <VoteDialog
-          isOpen={showVoteDialog}
-          voteSession={activeVoteSession}
-          voteResult={voteResult}
-          hasVoted={hasVoted}
-          onVote={handleVote}
         />
 
         {/* Leader Transfer Modal */}
@@ -1078,28 +1239,46 @@ export function RoomPage() {
                 players={playersInMyRoom}
                 roomColor={currentRoom}
                 currentPlayerId={currentPlayer.id}
+                leaderId={
+                  currentRoom === 'RED_ROOM' ? redLeader?.id :
+                  currentRoom === 'BLUE_ROOM' ? blueLeader?.id :
+                  undefined
+                }
               />
 
-              {/* Vote to remove leader button (non-leaders only) */}
-              {!isLeader && currentRound > 0 && playersInMyRoom.length >= 3 && !activeVoteSession && (
-                <button
-                  onClick={handleStartVote}
-                  style={{
-                    marginTop: 'clamp(0.75rem, 2vw, 1rem)',
-                    width: '100%',
-                    padding: 'clamp(0.65rem, 2vw, 0.75rem)',
-                    backgroundColor: '#f59e0b',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: 'clamp(0.9rem, 2.5vw, 1rem)',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                  }}
-                >
-                  🗳️ 리더 교체 투표 시작
-                </button>
-              )}
+              {/* Vote initiation button - only shown to non-leaders */}
+              {!isLeader &&
+                currentRound > 0 &&
+                playersInMyRoom.length >= 3 &&
+                !activeVoteSession && (
+                  <div style={{ marginTop: 'clamp(1rem, 3vw, 1.5rem)' }}>
+                    <button
+                      onClick={handleStartVote}
+                      style={{
+                        width: '100%',
+                        padding: 'clamp(0.875rem, 2.5vw, 1rem)',
+                        backgroundColor: '#8b5cf6',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: 'clamp(0.95rem, 2.5vw, 1rem)',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#7c3aed';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#8b5cf6';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      🗳️ 리더 교체 투표 시작
+                    </button>
+                  </div>
+                )}
             </div>
           </div>
 

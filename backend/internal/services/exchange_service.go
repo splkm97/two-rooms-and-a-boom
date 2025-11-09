@@ -144,7 +144,15 @@ func (es *ExchangeService) SelectHostages(roomCode, leaderID string, hostageIDs 
 	}
 
 	data, _ := msg.Marshal()
-	es.hub.BroadcastToRoom(roomCode, data)
+
+	// Broadcast to players in the specific room color (PRIVATE event)
+	var playerIDs []string
+	for _, player := range room.Players {
+		if player.CurrentRoom == leaderRoom {
+			playerIDs = append(playerIDs, player.ID)
+		}
+	}
+	es.hub.BroadcastToRoomColor(roomCode, playerIDs, data)
 
 	// Check if both leaders have selected
 	if len(roundState.RedHostages) > 0 && len(roundState.BlueHostages) > 0 {

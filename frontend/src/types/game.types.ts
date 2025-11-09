@@ -87,6 +87,7 @@ export interface ExchangeRecord {
 
 // Vote types
 export type VoteChoice = 'YES' | 'NO';
+export type VoteType = 'REMOVAL' | 'ELECTION';
 export type VoteResult = 'PASSED' | 'FAILED' | 'TIMEOUT';
 export type VoteSessionStatus = 'ACTIVE' | 'COMPLETED' | 'TIMEOUT';
 export type LeadershipChangeReason = 'VOLUNTARY_TRANSFER' | 'DISCONNECTION' | 'VOTE_REMOVAL';
@@ -95,10 +96,12 @@ export interface VoteSession {
   voteID: string;
   gameSessionId: string;
   roomColor: RoomColor;
+  voteType?: VoteType;
   targetLeaderId: string;
   targetLeaderName: string;
   initiatorId: string;
   initiatorName: string;
+  candidates?: string[];
   startedAt: string;
   expiresAt: string;
   timeoutSeconds: number;
@@ -222,8 +225,8 @@ export interface LeaderTransferredPayload {
 
 export interface LeadershipChangedPayload {
   roomColor: RoomColor;
-  oldLeader: LeaderInfo;
-  newLeader: LeaderInfo;
+  oldLeader: LeaderInfo | null;
+  newLeader: LeaderInfo | null;
   reason: LeadershipChangeReason;
   timestamp: string;
 }
@@ -235,10 +238,11 @@ export interface VoteRemoveLeaderStartedPayload {
 }
 
 export interface VoteSessionStartedPayload {
-  voteID: string;
+  voteId: string; // Note: backend sends camelCase 'voteId', not 'voteID'
   roomColor: RoomColor;
   targetLeader: LeaderInfo;
   initiator: LeaderInfo;
+  candidates?: string[]; // For election votes - array of candidate player IDs
   totalVoters: number;
   timeoutSeconds: number;
   startedAt: string;

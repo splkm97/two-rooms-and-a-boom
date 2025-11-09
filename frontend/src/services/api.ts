@@ -291,3 +291,137 @@ export async function getRoleConfigs(): Promise<RoleConfigsResponse> {
 export async function getRoleConfig(configId: string): Promise<RoleConfig> {
   return api.get<RoleConfig>(`/api/v1/role-configs/${configId}`);
 }
+
+// Round management API functions
+export interface TransferLeadershipRequest {
+  newLeaderId: string;
+}
+
+export async function transferLeadership(
+  roomCode: string,
+  playerId: string,
+  newLeaderId: string
+): Promise<{ message: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/rooms/${roomCode}/leaders/transfer`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Player-ID': playerId,
+    },
+    body: JSON.stringify({ newLeaderId }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({
+      code: 'UNKNOWN_ERROR',
+      message: `HTTP ${response.status}: ${response.statusText}`,
+    }));
+    throw new APIError(error.code, error.message, error.details);
+  }
+
+  return response.json();
+}
+
+export interface GetCurrentRoundResponse {
+  roundNumber: number;
+  timeRemaining: number;
+  duration: number;
+  status: string;
+  redLeader: string;
+  blueLeader: string;
+  hostageCount: number;
+  redHostagesSelected: boolean;
+  blueHostagesSelected: boolean;
+}
+
+export async function getCurrentRound(roomCode: string): Promise<GetCurrentRoundResponse> {
+  return api.get<GetCurrentRoundResponse>(`/api/v1/rooms/${roomCode}/rounds/current`);
+}
+
+// Vote types and interfaces
+export interface StartVoteRequest {
+  roomColor: string;
+  targetLeaderId: string;
+}
+
+export interface GetCurrentVoteResponse {
+  activeVote: {
+    voteId: string;
+    voteType?: 'REMOVAL' | 'ELECTION';
+    roomColor: string;
+    targetLeaderId: string;
+    targetLeaderName: string;
+    initiatorId: string;
+    initiatorName: string;
+    candidates?: string[];
+    totalVoters: number;
+    votedCount: number;
+    timeoutSeconds: number;
+    timeRemaining: number;
+    startedAt: string;
+  } | null;
+}
+
+// Start a vote to remove a leader
+export async function startVote(
+  roomCode: string,
+  playerId: string,
+  roomColor: string,
+  targetLeaderId: string
+): Promise<{ voteId: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/rooms/${roomCode}/votes/start`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Player-ID': playerId,
+    },
+    body: JSON.stringify({ roomColor, targetLeaderId }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({
+      code: 'UNKNOWN_ERROR',
+      message: `HTTP ${response.status}: ${response.statusText}`,
+    }));
+    throw new APIError(error.code, error.message, error.details);
+  }
+
+  return response.json();
+}
+
+// Cast a vote (YES/NO for removal, or candidateId for election)
+export async function castVote(
+  roomCode: string,
+  voteId: string,
+  playerId: string,
+  vote: string
+): Promise<{ message: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/rooms/${roomCode}/votes/${voteId}/cast`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Player-ID': playerId,
+    },
+    body: JSON.stringify({ vote }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({
+      code: 'UNKNOWN_ERROR',
+      message: `HTTP ${response.status}: ${response.statusText}`,
+    }));
+    throw new APIError(error.code, error.message, error.details);
+  }
+
+  return response.json();
+}
+
+// Get current active vote for a room
+export async function getCurrentVote(
+  roomCode: string,
+  roomColor: string
+): Promise<GetCurrentVoteResponse> {
+  return api.get<GetCurrentVoteResponse>(
+    `/api/v1/rooms/${roomCode}/votes/current?roomColor=${roomColor}`
+  );
+}
