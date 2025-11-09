@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import type { ExchangeRecord } from '../../types/game.types';
 
 interface ExchangeAnimationProps {
@@ -22,11 +22,36 @@ export function ExchangeAnimation({
   onComplete,
 }: ExchangeAnimationProps) {
   const [phase, setPhase] = useState<'entering' | 'showing' | 'exiting'>('entering');
+  const animationStartedRef = useRef(false);
+  const timersRef = useRef<{
+    show?: NodeJS.Timeout;
+    exit?: NodeJS.Timeout;
+    complete?: NodeJS.Timeout;
+  }>({});
 
   useEffect(() => {
+    console.log('[ExchangeAnimation] isActive changed to:', isActive, 'animationStarted:', animationStartedRef.current);
     if (!isActive) {
+      // Reset when inactive
+      setPhase('entering');
+      animationStartedRef.current = false;
+      // Clear any pending timers
+      if (timersRef.current.show) clearTimeout(timersRef.current.show);
+      if (timersRef.current.exit) clearTimeout(timersRef.current.exit);
+      if (timersRef.current.complete) clearTimeout(timersRef.current.complete);
+      timersRef.current = {};
       return;
     }
+
+    // Prevent restarting animation if already started
+    if (animationStartedRef.current) {
+      console.log('[ExchangeAnimation] Animation already started, skipping restart');
+      return;
+    }
+
+    // Mark animation as started
+    animationStartedRef.current = true;
+    console.log('[ExchangeAnimation] Starting animation sequence');
 
     // Animation sequence:
     // 1. Fade in (0.5s)
@@ -34,23 +59,18 @@ export function ExchangeAnimation({
     // 3. Fade out (0.5s)
     setPhase('entering');
 
-    const showTimer = setTimeout(() => {
+    timersRef.current.show = setTimeout(() => {
       setPhase('showing');
     }, 500);
 
-    const exitTimer = setTimeout(() => {
+    timersRef.current.exit = setTimeout(() => {
       setPhase('exiting');
     }, 3000);
 
-    const completeTimer = setTimeout(() => {
+    timersRef.current.complete = setTimeout(() => {
+      console.log('[ExchangeAnimation] Animation complete, calling onComplete');
       onComplete();
     }, 3500);
-
-    return () => {
-      clearTimeout(showTimer);
-      clearTimeout(exitTimer);
-      clearTimeout(completeTimer);
-    };
   }, [isActive, onComplete]);
 
   if (!isActive) {
@@ -173,7 +193,7 @@ export function ExchangeAnimation({
                     fontWeight: 600,
                   }}
                 >
-                  {exchange.playerName}
+                  {exchange.nickname}
                 </div>
               ))}
             </div>
@@ -231,7 +251,7 @@ export function ExchangeAnimation({
                     fontWeight: 600,
                   }}
                 >
-                  {exchange.playerName}
+                  {exchange.nickname}
                 </div>
               ))}
             </div>

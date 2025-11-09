@@ -22,18 +22,20 @@ const (
 
 // RoundState represents the state of a single round
 type RoundState struct {
-	GameSessionID string      `json:"gameSessionId"` // Associated game session
-	RoundNumber   int         `json:"roundNumber"`   // 1, 2, or 3
-	Duration      int         `json:"duration"`      // Total seconds (180/120/60)
-	TimeRemaining int         `json:"timeRemaining"` // Seconds left
-	Status        RoundStatus `json:"status"`        // Current round status
-	RedLeaderID   string      `json:"redLeaderId"`   // Red room leader
-	BlueLeaderID  string      `json:"blueLeaderId"`  // Blue room leader
-	HostageCount  int         `json:"hostageCount"`  // Number of hostages per room
-	RedHostages   []string    `json:"redHostages"`   // Red room hostage player IDs
-	BlueHostages  []string    `json:"blueHostages"`  // Blue room hostage player IDs
-	StartedAt     time.Time   `json:"startedAt"`     // Round start time
-	EndedAt       *time.Time  `json:"endedAt,omitempty"` // Round end time
+	GameSessionID   string      `json:"gameSessionId"`     // Associated game session
+	RoundNumber     int         `json:"roundNumber"`       // 1, 2, or 3
+	Duration        int         `json:"duration"`          // Total seconds (180/120/60)
+	TimeRemaining   int         `json:"timeRemaining"`     // Seconds left
+	Status          RoundStatus `json:"status"`            // Current round status
+	RedLeaderID     string      `json:"redLeaderId"`       // Red room leader
+	BlueLeaderID    string      `json:"blueLeaderId"`      // Blue room leader
+	HostageCount    int         `json:"hostageCount"`      // Number of hostages per room
+	RedHostages     []string    `json:"redHostages"`       // Red room hostage player IDs
+	BlueHostages    []string    `json:"blueHostages"`      // Blue room hostage player IDs
+	RedLeaderReady  bool        `json:"redLeaderReady"`    // Red leader ready for next round
+	BlueLeaderReady bool        `json:"blueLeaderReady"`   // Blue leader ready for next round
+	StartedAt       time.Time   `json:"startedAt"`         // Round start time
+	EndedAt         *time.Time  `json:"endedAt,omitempty"` // Round end time
 }
 
 // GetRoundDuration returns the duration for a given round number

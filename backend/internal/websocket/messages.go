@@ -23,7 +23,10 @@ const (
 	// Round management events
 	MessageRoundStarted       MessageType = "ROUND_STARTED"
 	MessageTimerTick          MessageType = "TIMER_TICK"
+	MessageRoundEnding        MessageType = "ROUND_ENDING"
 	MessageRoundEnded         MessageType = "ROUND_ENDED"
+	MessageLeaderReady        MessageType = "LEADER_READY"
+	MessageGameRevealing      MessageType = "GAME_REVEALING"
 
 	// Leader management events
 	MessageLeaderAssigned     MessageType = "LEADER_ASSIGNED"
@@ -120,11 +123,29 @@ type TimerTickPayload struct {
 	TimeRemaining int `json:"timeRemaining"`
 }
 
+// RoundEndingPayload for ROUND_ENDING event
+type RoundEndingPayload struct {
+	RoundNumber  int `json:"roundNumber"`
+	HostageCount int `json:"hostageCount"`
+}
+
 // RoundEndedPayload for ROUND_ENDED event
 type RoundEndedPayload struct {
 	RoundNumber int    `json:"roundNumber"`
 	FinalRound  bool   `json:"finalRound"`
 	NextPhase   string `json:"nextPhase"` // ROUND_SETUP or REVEALING
+}
+
+// LeaderReadyPayload for LEADER_READY event
+type LeaderReadyPayload struct {
+	RoomColor models.RoomColor `json:"roomColor"`
+	LeaderID  string           `json:"leaderId"`
+	BothReady bool             `json:"bothReady"`
+}
+
+// GameRevealingPayload for GAME_REVEALING event
+type GameRevealingPayload struct {
+	Message string `json:"message"`
 }
 
 // LeadershipChangedPayload for LEADERSHIP_CHANGED event
@@ -193,6 +214,7 @@ type ExchangeRecord struct {
 	Nickname   string           `json:"nickname"`
 	FromRoom   models.RoomColor `json:"fromRoom"`
 	ToRoom     models.RoomColor `json:"toRoom"`
+	Timestamp  string           `json:"timestamp"`
 }
 
 // ExchangeCompletePayload for EXCHANGE_COMPLETE event

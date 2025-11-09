@@ -1,7 +1,7 @@
 // Team and Room colors
 export type TeamColor = 'RED' | 'BLUE' | 'GREY';
 export type RoomColor = 'RED_ROOM' | 'BLUE_ROOM';
-export type RoomStatus = 'WAITING' | 'IN_PROGRESS' | 'COMPLETED';
+export type RoomStatus = 'WAITING' | 'IN_PROGRESS' | 'REVEALING' | 'COMPLETED';
 
 // Role definition
 export interface Role {
@@ -37,6 +37,7 @@ export interface GameSession {
   blueTeam: Player[];
   redRoomPlayers: Player[];
   blueRoomPlayers: Player[];
+  roundState?: RoundState;
   startedAt: string;
 }
 
@@ -67,6 +68,8 @@ export interface RoundState {
   hostageCount: number;
   redHostages: string[];
   blueHostages: string[];
+  redLeaderReady: boolean;
+  blueLeaderReady: boolean;
   startedAt: string;
   endedAt?: string;
 }
@@ -77,9 +80,8 @@ export interface LeaderInfo {
 }
 
 export interface ExchangeRecord {
-  roundNumber: number;
   playerId: string;
-  playerName: string;
+  nickname: string;
   fromRoom: RoomColor;
   toRoom: RoomColor;
   timestamp: string;
@@ -133,7 +135,10 @@ export type WSMessageType =
   // Round management events
   | 'ROUND_STARTED'
   | 'TIMER_TICK'
+  | 'ROUND_ENDING'
   | 'ROUND_ENDED'
+  | 'LEADER_READY'
+  | 'GAME_REVEALING'
   // Leader management events
   | 'LEADER_ASSIGNED'
   | 'LEADER_TRANSFERRED'
@@ -206,10 +211,25 @@ export interface TimerTickPayload {
   timeRemaining: number;
 }
 
+export interface RoundEndingPayload {
+  roundNumber: number;
+  hostageCount: number;
+}
+
 export interface RoundEndedPayload {
   roundNumber: number;
   finalRound: boolean;
   nextPhase: string;
+}
+
+export interface LeaderReadyPayload {
+  roomColor: RoomColor;
+  leaderId: string;
+  bothReady: boolean;
+}
+
+export interface GameRevealingPayload {
+  message: string;
 }
 
 // Leader-related payloads

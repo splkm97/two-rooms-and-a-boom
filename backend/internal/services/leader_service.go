@@ -25,6 +25,74 @@ func NewLeaderService(store *store.RoomStore, hub *websocket.Hub) *LeaderService
 	}
 }
 
+// PreserveLeaders keeps existing leaders and broadcasts ROUND_STARTED
+func (ls *LeaderService) PreserveLeaders(roomCode string) error {
+	room, err := ls.store.Get(roomCode)
+	if err != nil {
+		return err
+	}
+
+	if room.GameSession == nil || room.GameSession.RoundState == nil {
+		return errors.New("no active round")
+	}
+
+	roundState := room.GameSession.RoundState
+
+	// Find the existing leaders by ID
+	var redLeader, blueLeader *models.Player
+	for _, player := range room.Players {
+		if player.ID == roundState.RedLeaderID {
+			redLeader = player
+		}
+		if player.ID == roundState.BlueLeaderID {
+			blueLeader = player
+		}
+	}
+
+	if redLeader == nil || blueLeader == nil {
+		return errors.New("existing leaders not found")
+	}
+
+	// Update status to ACTIVE
+	roundState.Status = models.RoundStatusActive
+
+	if err := ls.store.Update(room); err != nil {
+		return err
+	}
+
+	log.Printf("[INFO] Leaders preserved: room=%s redLeader=%s (in %s) blueLeader=%s (in %s)",
+		roomCode, redLeader.Nickname, redLeader.CurrentRoom, blueLeader.Nickname, blueLeader.CurrentRoom)
+
+	// Broadcast ROUND_STARTED with leader info
+	payload := &websocket.RoundStartedPayload{
+		RoundNumber:   roundState.RoundNumber,
+		Duration:      roundState.Duration,
+		TimeRemaining: roundState.TimeRemaining,
+		RedLeader: &websocket.LeaderInfo{
+			ID:       redLeader.ID,
+			Nickname: redLeader.Nickname,
+		},
+		BlueLeader: &websocket.LeaderInfo{
+			ID:       blueLeader.ID,
+			Nickname: blueLeader.Nickname,
+		},
+		HostageCount: roundState.HostageCount,
+	}
+
+	msg, err := websocket.NewMessage(websocket.MessageRoundStarted, payload)
+	if err != nil {
+		return err
+	}
+
+	data, err := msg.Marshal()
+	if err != nil {
+		return err
+	}
+
+	ls.hub.BroadcastToRoom(roomCode, data)
+	return nil
+}
+
 // AssignLeaders randomly assigns one leader per room
 func (ls *LeaderService) AssignLeaders(roomCode string) error {
 	room, err := ls.store.Get(roomCode)

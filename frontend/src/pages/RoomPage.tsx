@@ -8,11 +8,12 @@ import { RoleCard } from '../components/role/RoleCard';
 import { RoomPlayerList } from '../components/room/RoomPlayerList';
 import { RoleListSidebar } from '../components/role/RoleListSidebar';
 import { RoundTimer } from '../components/game/RoundTimer';
-import { LeaderPanel } from '../components/game/LeaderPanel';
+import { RoundTimerPanel } from '../components/game/RoundTimerPanel';
 import { LeaderTransferModal } from '../components/game/LeaderTransferModal';
 import { ExchangeAnimation } from '../components/game/ExchangeAnimation';
 import { RoundHistory } from '../components/game/RoundHistory';
 import { VotePage } from '../components/game/VotePage';
+import { RevealPage } from '../components/game/RevealPage';
 import { useWebSocket } from '../hooks/useWebSocket';
 import {
   getRoom,
@@ -43,6 +44,9 @@ import type {
   RoundStartedPayload,
   TimerTickPayload,
   RoundEndedPayload,
+  RoundEndingPayload,
+  LeaderReadyPayload,
+  GameRevealingPayload,
   LeadershipChangedPayload,
   LeaderAnnouncedHostagesPayload,
   ExchangeCompletePayload,
@@ -93,8 +97,6 @@ export function RoomPage() {
   const [totalRoundTime, setTotalRoundTime] = useState<number>(180);
   const [redLeader, setRedLeader] = useState<LeaderInfo | null>(null);
   const [blueLeader, setBlueLeader] = useState<LeaderInfo | null>(null);
-  const [hostageCount, setHostageCount] = useState<number>(1);
-  const [selectionLocked, setSelectionLocked] = useState<boolean>(false);
 
   // Leader transfer state
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -131,6 +133,50 @@ export function RoomPage() {
   // Ref to track if we've already processed ROLE_ASSIGNED to prevent duplicate processing
   const roleAssignedProcessedRef = useRef(false);
   const hasJoinedRef = useRef(false);
+
+  // Ref to track which rounds have shown exchange animations (persists across re-renders)
+  const shownExchangeRoundsRef = useRef<Set<number>>(new Set());
+
+  // Ref to track last processed message to prevent duplicate processing
+  const lastProcessedMessageRef = useRef<string>('');
+
+  // Function to fetch and update room state
+  const fetchRoom = async () => {
+    if (!roomCode || !currentPlayer) return;
+
+    try {
+      const roomData = await getRoom(roomCode);
+      setRoom(roomData as Room);
+
+      // Update player data if game is in progress
+      if (roomData.status === 'IN_PROGRESS' || roomData.status === 'REVEALING') {
+        const currentPlayerData = roomData.players.find((p: Player) => p.id === currentPlayer.id);
+        if (currentPlayerData) {
+          setRole(currentPlayerData.role || null);
+          setTeam(currentPlayerData.team || null);
+          setCurrentRoom(currentPlayerData.currentRoom || null);
+
+          const redPlayers = roomData.players.filter((p: Player) => p.currentRoom === 'RED_ROOM');
+          const bluePlayers = roomData.players.filter((p: Player) => p.currentRoom === 'BLUE_ROOM');
+          setRedRoomPlayers(redPlayers);
+          setBlueRoomPlayers(bluePlayers);
+        }
+      }
+    } catch (err) {
+      console.error('[ERROR] Failed to fetch room:', err);
+    }
+  };
+
+  // Periodic refresh - poll every 3 seconds
+  useEffect(() => {
+    if (!roomCode || !currentPlayer) return;
+
+    const intervalId = setInterval(() => {
+      fetchRoom();
+    }, 3000); // 3 seconds
+
+    return () => clearInterval(intervalId);
+  }, [roomCode, currentPlayer?.id]);
 
   // Initial room join
   useEffect(() => {
@@ -217,7 +263,6 @@ export function RoomPage() {
               setCurrentRound(roundState.roundNumber);
               setTimeRemaining(roundState.timeRemaining);
               setTotalRoundTime(roundState.duration);
-              setHostageCount(roundState.hostageCount);
 
               // Find leader players from the room data
               if (roundState.redLeader) {
@@ -321,6 +366,14 @@ export function RoomPage() {
   // Handle WebSocket messages
   useEffect(() => {
     if (!lastMessage) return;
+
+    // Create a unique ID for this message to prevent duplicate processing
+    const messageId = JSON.stringify(lastMessage);
+    if (lastProcessedMessageRef.current === messageId) {
+      console.log('[WebSocket] Skipping duplicate message:', lastMessage.type);
+      return;
+    }
+    lastProcessedMessageRef.current = messageId;
 
     try {
       console.log('[WebSocket] Received message:', lastMessage.type, lastMessage.payload);
@@ -456,7 +509,6 @@ export function RoomPage() {
           setTimeRemaining(0);
           setRedLeader(null);
           setBlueLeader(null);
-          setSelectionLocked(false);
           setHistoryEvents([]);
           // Clear history from localStorage
           if (roomCode) {
@@ -475,8 +527,6 @@ export function RoomPage() {
           setTotalRoundTime(payload.duration);
           setRedLeader(payload.redLeader);
           setBlueLeader(payload.blueLeader);
-          setHostageCount(payload.hostageCount);
-          setSelectionLocked(false);
           setCanTransferLeadership(true);
           break;
         }
@@ -494,6 +544,31 @@ export function RoomPage() {
             // Game is over, will transition to reveal
             setCurrentRound(0);
           }
+          break;
+        }
+
+        case 'ROUND_ENDING': {
+          const payload = lastMessage.payload as RoundEndingPayload;
+          console.log(`Round ${payload.roundNumber} ending, select ${payload.hostageCount} hostages`);
+          // Trigger UI update - roundState will be updated via room state
+          break;
+        }
+
+        case 'LEADER_READY': {
+          const payload = lastMessage.payload as LeaderReadyPayload;
+          console.log(`Leader ready: ${payload.leaderId} from ${payload.roomColor}`);
+          if (payload.bothReady) {
+            console.log('Both leaders ready, next round starting soon!');
+          }
+          // Trigger UI update
+          break;
+        }
+
+        case 'GAME_REVEALING': {
+          const payload = lastMessage.payload as GameRevealingPayload;
+          console.log(payload.message);
+          // Fetch updated room state to reflect REVEALING status
+          fetchRoom();
           break;
         }
 
@@ -609,21 +684,31 @@ export function RoomPage() {
         // Exchange events
         case 'LEADER_ANNOUNCED_HOSTAGES': {
           const payload = lastMessage.payload as LeaderAnnouncedHostagesPayload;
-          // Lock selection for this room's leader
-          if (
-            (payload.roomColor === 'RED_ROOM' && currentPlayer?.id === redLeader?.id) ||
-            (payload.roomColor === 'BLUE_ROOM' && currentPlayer?.id === blueLeader?.id)
-          ) {
-            setSelectionLocked(true);
-          }
+          // UI update handled by roundState
+          console.log(`Hostages announced for ${payload.roomColor}`);
           break;
         }
 
         case 'EXCHANGE_COMPLETE': {
           const payload = lastMessage.payload as ExchangeCompletePayload;
-          setExchangeRecords(payload.exchanges);
-          setShowExchangeAnimation(true);
-          setSelectionLocked(false);
+
+          // Only show animation if:
+          // 1. We haven't shown it for this round yet
+          // 2. We've shown fewer than 2 animations total
+          const alreadyShown = shownExchangeRoundsRef.current.has(payload.roundNumber);
+          const canShowMore = shownExchangeRoundsRef.current.size < 2;
+
+          if (!alreadyShown && canShowMore) {
+            shownExchangeRoundsRef.current.add(payload.roundNumber);
+            setExchangeRecords(payload.exchanges);
+            console.log('[DEBUG] Setting showExchangeAnimation = TRUE for round', payload.roundNumber,
+                       'Total shown:', shownExchangeRoundsRef.current.size);
+            setShowExchangeAnimation(true);
+          } else {
+            console.log('[DEBUG] Exchange animation skipped for round', payload.roundNumber,
+                       'Already shown:', alreadyShown, 'Can show more:', canShowMore,
+                       'Total shown:', shownExchangeRoundsRef.current.size);
+          }
 
           // Add exchanges to history (check for duplicates)
           const newHistoryEvents = payload.exchanges.map((exchange) => ({
@@ -713,16 +798,62 @@ export function RoomPage() {
   };
 
   // Round-based handlers
-  const handleSelectHostages = (hostageIds: string[]) => {
-    if (!currentRoom || !sendMessage) return;
+  const handleSelectHostages = async (hostageIds: string[]) => {
+    if (!room || !currentPlayer) return;
 
-    sendMessage({
-      type: 'HOSTAGES_SELECTED',
-      payload: {
-        roomColor: currentRoom,
-        hostageIDs: hostageIds,
-      },
-    });
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/v1/rooms/${room.code}/hostages/select`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Player-ID': currentPlayer.id,
+          },
+          body: JSON.stringify({
+            hostageIds: hostageIds,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to select hostages');
+      }
+
+      console.log('Hostages selected successfully');
+      // The LEADER_ANNOUNCED_HOSTAGES WebSocket event will update the UI
+    } catch (error) {
+      console.error('Failed to select hostages:', error);
+      alert('인질 선택에 실패했습니다');
+    }
+  };
+
+  const handleLeaderReady = async () => {
+    if (!room) return;
+
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/v1/rooms/${room.code}/rounds/ready`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Player-ID': currentPlayer?.id || '',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to mark ready');
+      }
+
+      console.log('Leader marked as ready');
+    } catch (error) {
+      console.error('Failed to mark leader ready:', error);
+      alert('준비 완료 처리에 실패했습니다');
+    }
   };
 
   const handleTransferLeadership = async (newLeaderId: string) => {
@@ -769,6 +900,7 @@ export function RoomPage() {
   };
 
   const handleExchangeAnimationComplete = () => {
+    console.log('[DEBUG] Exchange animation completed, hiding overlay');
     setShowExchangeAnimation(false);
 
     // Update player lists after exchange
@@ -839,6 +971,15 @@ export function RoomPage() {
         <div style={{ textAlign: 'center', padding: '2rem' }}>
           <p>방 정보를 불러올 수 없습니다</p>
         </div>
+      </Layout>
+    );
+  }
+
+  // Show reveal page if game is in revealing phase (after Round 3)
+  if (room.status === 'REVEALING') {
+    return (
+      <Layout>
+        <RevealPage players={room.players} roomCode={room.code} />
       </Layout>
     );
   }
@@ -1282,19 +1423,18 @@ export function RoomPage() {
             </div>
           </div>
 
-          {/* Leader Panel - only shown to leaders during active rounds */}
+          {/* Round Timer Panel - only shown to leaders during active rounds */}
           {isLeader && currentRound > 0 && currentPlayer && (
             <div style={{ marginBottom: 'clamp(1rem, 3vw, 2rem)' }}>
-              <LeaderPanel
+              <RoundTimerPanel
                 isLeader={isLeader}
-                hostageCount={hostageCount}
-                players={playersInMyRoom}
+                roundState={room.gameSession?.roundState || null}
+                players={room.players}
                 currentPlayerId={currentPlayer.id}
                 currentRoom={currentRoom}
                 onSelectHostages={handleSelectHostages}
-                onTransferLeadership={() => setShowTransferModal(true)}
-                canTransferLeadership={canTransferLeadership}
-                selectionLocked={selectionLocked}
+                onLeaderReady={handleLeaderReady}
+                onTransferLeadership={handleTransferLeadership}
               />
             </div>
           )}

@@ -59,7 +59,15 @@ export function RoundHistory({ events }: RoundHistoryProps) {
   };
 
   const formatTime = (timestamp: string) => {
+    if (!timestamp) return '';
+
     const date = new Date(timestamp);
+
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return '';
+    }
+
     return date.toLocaleTimeString('ko-KR', {
       hour: '2-digit',
       minute: '2-digit',
@@ -223,126 +231,163 @@ export function RoundHistory({ events }: RoundHistoryProps) {
                         padding: 'clamp(0.75rem, 2.5vw, 1rem)',
                       }}
                     >
-                      {roundEvents.map((event, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            padding: 'clamp(0.65rem, 2vw, 0.75rem)',
-                            backgroundColor: 'var(--bg-secondary, #f3f4f6)',
-                            borderRadius: '6px',
-                            marginBottom: idx < roundEvents.length - 1 ? '0.5rem' : 0,
-                            borderLeft: `4px solid ${
-                              event.type === 'exchange' ? '#3b82f6' : '#8b5cf6'
-                            }`,
-                          }}
-                        >
-                          {event.type === 'exchange' ? (
-                            /* Exchange event */
-                            <div>
-                              <div
-                                style={{
-                                  fontSize: 'clamp(0.8rem, 2.5vw, 0.875rem)',
-                                  color: 'var(--text-secondary, #6b7280)',
-                                  marginBottom: '0.25rem',
-                                }}
-                              >
-                                {formatTime(event.timestamp)}
-                              </div>
-                              <div
-                                style={{
-                                  fontSize: 'clamp(0.9rem, 2.5vw, 0.95rem)',
-                                  color: 'var(--text-primary, #1f2937)',
-                                }}
-                              >
-                                <strong>{(event.data as ExchangeRecord).playerName}</strong>{' '}
-                                <span
-                                  style={{
-                                    color:
-                                      (event.data as ExchangeRecord).fromRoom === 'RED_ROOM'
-                                        ? '#dc2626'
-                                        : '#2563eb',
-                                  }}
-                                >
-                                  {(event.data as ExchangeRecord).fromRoom === 'RED_ROOM'
-                                    ? '빨간 방'
-                                    : '파란 방'}
-                                </span>{' '}
-                                →{' '}
-                                <span
-                                  style={{
-                                    color:
-                                      (event.data as ExchangeRecord).toRoom === 'RED_ROOM'
-                                        ? '#dc2626'
-                                        : '#2563eb',
-                                  }}
-                                >
-                                  {(event.data as ExchangeRecord).toRoom === 'RED_ROOM'
-                                    ? '빨간 방'
-                                    : '파란 방'}
-                                </span>
-                              </div>
-                            </div>
-                          ) : (
-                            /* Leadership change event */
-                            <div>
-                              <div
-                                style={{
-                                  fontSize: 'clamp(0.8rem, 2.5vw, 0.875rem)',
-                                  color: 'var(--text-secondary, #6b7280)',
-                                  marginBottom: '0.25rem',
-                                }}
-                              >
-                                {formatTime(event.timestamp)} · 👑 리더십 변경
-                              </div>
-                              <div
-                                style={{
-                                  fontSize: 'clamp(0.9rem, 2.5vw, 0.95rem)',
-                                  color: 'var(--text-primary, #1f2937)',
-                                }}
-                              >
-                                <span
-                                  style={{
-                                    color:
-                                      (event.data as LeadershipChangedPayload).roomColor ===
-                                      'RED_ROOM'
-                                        ? '#dc2626'
-                                        : '#2563eb',
-                                  }}
-                                >
-                                  {(event.data as LeadershipChangedPayload).roomColor ===
-                                  'RED_ROOM'
-                                    ? '빨간 방'
-                                    : '파란 방'}
-                                </span>
-                                :{' '}
-                                {(event.data as LeadershipChangedPayload).oldLeader ? (
-                                  <>
-                                    <strong>
-                                      {(event.data as LeadershipChangedPayload).oldLeader?.nickname}
-                                    </strong>{' '}
-                                    →{' '}
-                                  </>
-                                ) : null}
-                                <strong>
-                                  {(event.data as LeadershipChangedPayload).newLeader?.nickname || '알 수 없음'}
-                                </strong>
-                                <div
-                                  style={{
-                                    fontSize: 'clamp(0.75rem, 2vw, 0.8rem)',
-                                    color: 'var(--text-secondary, #6b7280)',
-                                    marginTop: '0.25rem',
-                                  }}
-                                >
-                                  사유:{' '}
-                                  {formatLeadershipReason(
-                                    (event.data as LeadershipChangedPayload).reason
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                      {(() => {
+                        // Group exchanges by direction (fromRoom -> toRoom)
+                        const exchangeGroups: Record<
+                          string,
+                          { exchanges: ExchangeRecord[]; timestamp: string }
+                        > = {};
+                        const leadershipEvents: RoundHistoryEvent[] = [];
+
+                        roundEvents.forEach((event) => {
+                          if (event.type === 'exchange') {
+                            const exchange = event.data as ExchangeRecord;
+                            const key = `${exchange.fromRoom}->${exchange.toRoom}`;
+                            if (!exchangeGroups[key]) {
+                              exchangeGroups[key] = {
+                                exchanges: [],
+                                timestamp: event.timestamp,
+                              };
+                            }
+                            exchangeGroups[key].exchanges.push(exchange);
+                          } else {
+                            leadershipEvents.push(event);
+                          }
+                        });
+
+                        const allDisplayEvents = [
+                          ...Object.entries(exchangeGroups).map(([key, group]) => ({
+                            type: 'exchange-group' as const,
+                            key,
+                            data: group,
+                          })),
+                          ...leadershipEvents.map((event) => ({
+                            type: 'leadership' as const,
+                            key: event.timestamp,
+                            data: event,
+                          })),
+                        ];
+
+                        return allDisplayEvents.map((displayEvent, idx) => (
+                          <div
+                            key={displayEvent.key + idx}
+                            style={{
+                              padding: 'clamp(0.65rem, 2vw, 0.75rem)',
+                              backgroundColor: 'var(--bg-secondary, #f3f4f6)',
+                              borderRadius: '6px',
+                              marginBottom: idx < allDisplayEvents.length - 1 ? '0.5rem' : 0,
+                              borderLeft: `4px solid ${
+                                displayEvent.type === 'exchange-group' ? '#3b82f6' : '#8b5cf6'
+                              }`,
+                            }}
+                          >
+                            {displayEvent.type === 'exchange-group' ? (
+                              /* Grouped exchange events */
+                              (() => {
+                                const group = displayEvent.data as {
+                                  exchanges: ExchangeRecord[];
+                                  timestamp: string;
+                                };
+                                const firstExchange = group.exchanges[0];
+                                const fromRoom = firstExchange.fromRoom;
+                                const toRoom = firstExchange.toRoom;
+
+                                return (
+                                  <div>
+                                    <div
+                                      style={{
+                                        fontSize: 'clamp(0.8rem, 2.5vw, 0.875rem)',
+                                        color: 'var(--text-secondary, #6b7280)',
+                                        marginBottom: '0.25rem',
+                                      }}
+                                    >
+                                      {formatTime(group.timestamp)}
+                                    </div>
+                                    <div
+                                      style={{
+                                        fontSize: 'clamp(0.9rem, 2.5vw, 0.95rem)',
+                                        color: 'var(--text-primary, #1f2937)',
+                                      }}
+                                    >
+                                      <strong>
+                                        {group.exchanges.map((ex) => ex.nickname).join(', ')}
+                                      </strong>{' '}
+                                      <span
+                                        style={{
+                                          color: fromRoom === 'RED_ROOM' ? '#dc2626' : '#2563eb',
+                                        }}
+                                      >
+                                        {fromRoom === 'RED_ROOM' ? '빨간 방' : '파란 방'}
+                                      </span>{' '}
+                                      →{' '}
+                                      <span
+                                        style={{
+                                          color: toRoom === 'RED_ROOM' ? '#dc2626' : '#2563eb',
+                                        }}
+                                      >
+                                        {toRoom === 'RED_ROOM' ? '빨간 방' : '파란 방'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })()
+                            ) : (
+                              /* Leadership change event */
+                              (() => {
+                                const leaderEvent = displayEvent.data as RoundHistoryEvent;
+                                const leaderData = leaderEvent.data as LeadershipChangedPayload;
+
+                                return (
+                                  <div>
+                                    <div
+                                      style={{
+                                        fontSize: 'clamp(0.8rem, 2.5vw, 0.875rem)',
+                                        color: 'var(--text-secondary, #6b7280)',
+                                        marginBottom: '0.25rem',
+                                      }}
+                                    >
+                                      {formatTime(leaderEvent.timestamp)} · 👑 리더십 변경
+                                    </div>
+                                    <div
+                                      style={{
+                                        fontSize: 'clamp(0.9rem, 2.5vw, 0.95rem)',
+                                        color: 'var(--text-primary, #1f2937)',
+                                      }}
+                                    >
+                                      <span
+                                        style={{
+                                          color:
+                                            leaderData.roomColor === 'RED_ROOM'
+                                              ? '#dc2626'
+                                              : '#2563eb',
+                                        }}
+                                      >
+                                        {leaderData.roomColor === 'RED_ROOM' ? '빨간 방' : '파란 방'}
+                                      </span>
+                                      :{' '}
+                                      {leaderData.oldLeader ? (
+                                        <>
+                                          <strong>{leaderData.oldLeader?.nickname}</strong> →{' '}
+                                        </>
+                                      ) : null}
+                                      <strong>{leaderData.newLeader?.nickname || '알 수 없음'}</strong>
+                                      <div
+                                        style={{
+                                          fontSize: 'clamp(0.75rem, 2vw, 0.8rem)',
+                                          color: 'var(--text-secondary, #6b7280)',
+                                          marginTop: '0.25rem',
+                                        }}
+                                      >
+                                        사유: {formatLeadershipReason(leaderData.reason)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })()
+                            )}
+                          </div>
+                        ));
+                      })()}
                     </div>
                   )}
                 </div>

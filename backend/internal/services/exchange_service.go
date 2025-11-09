@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/kalee/two-rooms-and-a-boom/internal/models"
 	"github.com/kalee/two-rooms-and-a-boom/internal/store"
@@ -63,10 +64,14 @@ func (es *ExchangeService) SelectHostages(roomCode, leaderID string, hostageIDs 
 		}
 	}
 
-	// Validate no self-selection
+	// Validate no leader selection (neither self nor other leader)
 	for _, hid := range hostageIDs {
 		if hid == leaderID {
 			return errors.New("leader cannot select themselves as hostage")
+		}
+		// Check if selecting the other leader
+		if hid == roundState.RedLeaderID || hid == roundState.BlueLeaderID {
+			return errors.New("leaders cannot be selected as hostages - they must transfer leadership first")
 		}
 	}
 
@@ -256,15 +261,17 @@ func (es *ExchangeService) ExecuteExchange(roomCode string) error {
 
 	// Build exchange records
 	var exchanges []websocket.ExchangeRecord
+	now := time.Now().Format(time.RFC3339)
 
 	for _, hid := range roundState.RedHostages {
 		for _, player := range room.Players {
 			if player.ID == hid {
 				exchanges = append(exchanges, websocket.ExchangeRecord{
-					PlayerID: player.ID,
-					Nickname: player.Nickname,
-					FromRoom: models.RedRoom,
-					ToRoom:   models.BlueRoom,
+					PlayerID:  player.ID,
+					Nickname:  player.Nickname,
+					FromRoom:  models.RedRoom,
+					ToRoom:    models.BlueRoom,
+					Timestamp: now,
 				})
 				break
 			}
@@ -275,10 +282,11 @@ func (es *ExchangeService) ExecuteExchange(roomCode string) error {
 		for _, player := range room.Players {
 			if player.ID == hid {
 				exchanges = append(exchanges, websocket.ExchangeRecord{
-					PlayerID: player.ID,
-					Nickname: player.Nickname,
-					FromRoom: models.BlueRoom,
-					ToRoom:   models.RedRoom,
+					PlayerID:  player.ID,
+					Nickname:  player.Nickname,
+					FromRoom:  models.BlueRoom,
+					ToRoom:    models.RedRoom,
+					Timestamp: now,
 				})
 				break
 			}

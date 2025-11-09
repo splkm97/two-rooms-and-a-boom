@@ -310,6 +310,26 @@ func (h *RoundHandler) SelectHostages(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "hostages selected"})
 }
 
+// LeaderReady marks a leader as ready for the next round
+// POST /api/v1/rooms/:roomCode/rounds/ready
+func (h *RoundHandler) LeaderReady(c *gin.Context) {
+	roomCode := c.Param("roomCode")
+	leaderID := c.GetHeader("X-Player-ID")
+
+	if leaderID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "player ID required"})
+		return
+	}
+
+	if err := h.roundManager.LeaderReady(roomCode, leaderID); err != nil {
+		log.Printf("[ERROR] Failed to mark leader ready: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "leader marked as ready"})
+}
+
 // RegisterRoutes registers round-related routes
 func (h *RoundHandler) RegisterRoutes(router *gin.Engine) {
 	api := router.Group("/api/v1")

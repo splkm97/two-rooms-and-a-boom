@@ -8,6 +8,7 @@ type RoomStatus string
 const (
 	RoomStatusWaiting    RoomStatus = "WAITING"     // Lobby state
 	RoomStatusInProgress RoomStatus = "IN_PROGRESS" // Game in progress
+	RoomStatusRevealing  RoomStatus = "REVEALING"   // Role reveal phase
 )
 
 // Room represents a game session lobby

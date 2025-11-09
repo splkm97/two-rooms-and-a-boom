@@ -106,6 +106,9 @@ func main() {
 	gameService.SetRoundManager(roundManager)
 	gameService.SetLeaderService(leaderService)
 
+	// Wire leader service to round manager for auto-assigning leaders on next round
+	roundManager.SetLeaderService(leaderService)
+
 	// Initialize handlers
 	roomHandler := handlers.NewRoomHandler(roomService, roleLoader)
 	playerHandler := handlers.NewPlayerHandler(playerService)
@@ -153,6 +156,7 @@ func main() {
 		v1.GET("/rooms/:roomCode/votes/current", roundHandler.GetCurrentVote)
 		v1.POST("/rooms/:roomCode/votes/:voteId/cast", roundHandler.CastVote)
 		v1.POST("/rooms/:roomCode/hostages/select", roundHandler.SelectHostages)
+		v1.POST("/rooms/:roomCode/rounds/ready", roundHandler.LeaderReady)
 	}
 
 	// WebSocket route
