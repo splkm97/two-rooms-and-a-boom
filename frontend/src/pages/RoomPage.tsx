@@ -151,14 +151,14 @@ export function RoomPage() {
 
       // Update player data if game is in progress
       if (roomData.status === 'IN_PROGRESS' || roomData.status === 'REVEALING') {
-        const currentPlayerData = roomData.players.find((p: Player) => p?.id === currentPlayer.id);
+        const currentPlayerData = roomData.players.find((p: Player) => p?.id === currentPlayer?.id);
         if (currentPlayerData) {
           setRole(currentPlayerData.role || null);
           setTeam(currentPlayerData.team || null);
           setCurrentRoom(currentPlayerData.currentRoom || null);
 
-          const redPlayers = roomData.players.filter((p: Player) => p.currentRoom === 'RED_ROOM');
-          const bluePlayers = roomData.players.filter((p: Player) => p.currentRoom === 'BLUE_ROOM');
+          const redPlayers = roomData.players.filter((p: Player) => p?.currentRoom === 'RED_ROOM');
+          const bluePlayers = roomData.players.filter((p: Player) => p?.currentRoom === 'BLUE_ROOM');
           setRedRoomPlayers(redPlayers);
           setBlueRoomPlayers(bluePlayers);
         }
@@ -244,7 +244,7 @@ export function RoomPage() {
 
         // If game is in progress, load role data and round state
         if (updatedRoom.status === 'IN_PROGRESS' && player) {
-          const currentPlayerData = updatedRoom.players.find((p: Player) => p?.id === player.id);
+          const currentPlayerData = updatedRoom.players.find((p: Player) => p?.id === player?.id);
           if (currentPlayerData?.role) {
             setRole(currentPlayerData.role);
             setTeam(currentPlayerData.team || null);
@@ -383,7 +383,7 @@ export function RoomPage() {
           const { player } = lastMessage.payload as PlayerJoinedPayload;
           setRoom((prev) => {
             if (!prev) return prev;
-            const exists = prev.players.some((p) => p?.id === player.id);
+            const exists = prev.players.some((p) => p?.id === player?.id);
             if (exists) return prev;
             return {
               ...prev,
@@ -413,7 +413,7 @@ export function RoomPage() {
             return {
               ...prev,
               players: prev.players.map((p) =>
-                p.id === playerId ? { ...p, nickname: newNickname, isAnonymous: false } : p
+                p?.id === playerId ? { ...p, nickname: newNickname, isAnonymous: false } : p
               ),
             };
           });
@@ -433,7 +433,7 @@ export function RoomPage() {
               ...prev,
               players: prev.players.map((p) => ({
                 ...p,
-                isOwner: p.id === newOwner.id,
+                isOwner: p?.id === newOwner?.id,
               })),
             };
           });
@@ -485,9 +485,9 @@ export function RoomPage() {
           // Fetch updated room data to get all players' room assignments
           if (roomCode) {
             getRoom(roomCode).then((roomData) => {
-              const redPlayers = roomData.players.filter((p: Player) => p.currentRoom === 'RED_ROOM');
+              const redPlayers = roomData.players.filter((p: Player) => p?.currentRoom === 'RED_ROOM');
               const bluePlayers = roomData.players.filter(
-                (p: Player) => p.currentRoom === 'BLUE_ROOM'
+                (p: Player) => p?.currentRoom === 'BLUE_ROOM'
               );
               setRedRoomPlayers(redPlayers);
               setBlueRoomPlayers(bluePlayers);
