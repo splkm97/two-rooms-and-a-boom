@@ -381,9 +381,10 @@ export function RoomPage() {
       switch (lastMessage.type) {
         case 'PLAYER_JOINED': {
           const { player } = lastMessage.payload as PlayerJoinedPayload;
+          if (!player) break; // Guard: Skip if player is undefined
           setRoom((prev) => {
             if (!prev) return prev;
-            const exists = prev.players.some((p) => p?.id === player?.id);
+            const exists = prev.players.some((p) => p?.id === player.id);
             if (exists) return prev;
             return {
               ...prev,
@@ -427,13 +428,14 @@ export function RoomPage() {
 
         case 'OWNER_CHANGED': {
           const { newOwner } = lastMessage.payload as OwnerChangedPayload;
+          if (!newOwner) break; // Guard: Skip if newOwner is undefined
           setRoom((prev) => {
             if (!prev) return prev;
             return {
               ...prev,
               players: prev.players.map((p) => ({
                 ...p,
-                isOwner: p?.id === newOwner?.id,
+                isOwner: p?.id === newOwner.id,
               })),
             };
           });
@@ -576,6 +578,7 @@ export function RoomPage() {
         // Leader management events
         case 'LEADERSHIP_CHANGED': {
           const payload = lastMessage.payload as LeadershipChangedPayload;
+          if (!payload || !payload.newLeader) break; // Guard: Skip if payload or newLeader is undefined
           if (payload.roomColor === 'RED_ROOM') {
             setRedLeader(payload.newLeader);
           } else {
