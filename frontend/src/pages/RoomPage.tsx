@@ -151,7 +151,7 @@ export function RoomPage() {
 
       // Update player data if game is in progress
       if (roomData.status === 'IN_PROGRESS' || roomData.status === 'REVEALING') {
-        const currentPlayerData = roomData.players.find((p: Player) => p.id === currentPlayer.id);
+        const currentPlayerData = roomData.players.find((p: Player) => p?.id === currentPlayer.id);
         if (currentPlayerData) {
           setRole(currentPlayerData.role || null);
           setTeam(currentPlayerData.team || null);
@@ -210,12 +210,12 @@ export function RoomPage() {
         // Check if we already have a playerId for this room
         const storedPlayerId = localStorage.getItem(`playerId_${roomCode}`);
         console.log('[DEBUG] storedPlayerId:', storedPlayerId);
-        console.log('[DEBUG] roomData.players:', roomData.players.map((p: Player) => ({id: p.id, nickname: p.nickname})));
+        console.log('[DEBUG] roomData.players:', roomData.players.map((p: Player) => ({id: p?.id, nickname: p?.nickname})));
 
         let player;
         if (storedPlayerId) {
           // Try to find existing player in room
-          const existingPlayer = roomData.players.find((p: Player) => p.id === storedPlayerId);
+          const existingPlayer = roomData.players.find((p: Player) => p?.id === storedPlayerId);
           console.log('[DEBUG] existingPlayer found:', existingPlayer ? 'YES' : 'NO');
           if (existingPlayer) {
             console.log('[DEBUG] Using existing player:', existingPlayer.id, existingPlayer.nickname);
@@ -244,15 +244,15 @@ export function RoomPage() {
 
         // If game is in progress, load role data and round state
         if (updatedRoom.status === 'IN_PROGRESS' && player) {
-          const currentPlayerData = updatedRoom.players.find((p: Player) => p.id === player.id);
+          const currentPlayerData = updatedRoom.players.find((p: Player) => p?.id === player.id);
           if (currentPlayerData?.role) {
             setRole(currentPlayerData.role);
             setTeam(currentPlayerData.team || null);
             setCurrentRoom(currentPlayerData.currentRoom || null);
 
-            const redPlayers = updatedRoom.players.filter((p: Player) => p.currentRoom === 'RED_ROOM');
+            const redPlayers = updatedRoom.players.filter((p: Player) => p?.currentRoom === 'RED_ROOM');
             const bluePlayers = updatedRoom.players.filter(
-              (p: Player) => p.currentRoom === 'BLUE_ROOM'
+              (p: Player) => p?.currentRoom === 'BLUE_ROOM'
             );
             setRedRoomPlayers(redPlayers);
             setBlueRoomPlayers(bluePlayers);
@@ -267,14 +267,14 @@ export function RoomPage() {
 
               // Find leader players from the room data
               if (roundState.redLeader) {
-                const redLeaderPlayer = updatedRoom.players.find((p: Player) => p.id === roundState.redLeader);
+                const redLeaderPlayer = updatedRoom.players.find((p: Player) => p?.id === roundState.redLeader);
                 if (redLeaderPlayer) {
                   setRedLeader({ id: redLeaderPlayer.id, nickname: redLeaderPlayer.nickname });
                 }
               }
 
               if (roundState.blueLeader) {
-                const blueLeaderPlayer = updatedRoom.players.find((p: Player) => p.id === roundState.blueLeader);
+                const blueLeaderPlayer = updatedRoom.players.find((p: Player) => p?.id === roundState.blueLeader);
                 if (blueLeaderPlayer) {
                   setBlueLeader({ id: blueLeaderPlayer.id, nickname: blueLeaderPlayer.nickname });
                 }
@@ -383,7 +383,7 @@ export function RoomPage() {
           const { player } = lastMessage.payload as PlayerJoinedPayload;
           setRoom((prev) => {
             if (!prev) return prev;
-            const exists = prev.players.some((p) => p.id === player.id);
+            const exists = prev.players.some((p) => p?.id === player.id);
             if (exists) return prev;
             return {
               ...prev,
@@ -400,7 +400,7 @@ export function RoomPage() {
             if (!prev) return prev;
             return {
               ...prev,
-              players: prev.players.filter((p) => p.id !== playerId),
+              players: prev.players.filter((p) => p?.id !== playerId),
             };
           });
           break;
@@ -907,13 +907,13 @@ export function RoomPage() {
     // Update player lists after exchange
     if (roomCode) {
       getRoom(roomCode).then((roomData) => {
-        const redPlayers = roomData.players.filter((p: Player) => p.currentRoom === 'RED_ROOM');
-        const bluePlayers = roomData.players.filter((p: Player) => p.currentRoom === 'BLUE_ROOM');
+        const redPlayers = roomData.players.filter((p: Player) => p?.currentRoom === 'RED_ROOM');
+        const bluePlayers = roomData.players.filter((p: Player) => p?.currentRoom === 'BLUE_ROOM');
         setRedRoomPlayers(redPlayers);
         setBlueRoomPlayers(bluePlayers);
 
         // Update current player's room if they were exchanged
-        const updatedCurrentPlayer = roomData.players.find((p: Player) => p.id === currentPlayer?.id);
+        const updatedCurrentPlayer = roomData.players.find((p: Player) => p?.id === currentPlayer?.id);
         if (updatedCurrentPlayer?.currentRoom) {
           setCurrentRoom(updatedCurrentPlayer.currentRoom);
         }
