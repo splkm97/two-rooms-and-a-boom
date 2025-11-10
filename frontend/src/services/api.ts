@@ -2,7 +2,7 @@ import type { RoleConfigsResponse, RoleConfig } from '../types/roleConfig';
 import type { Player } from '../types/game.types';
 
 // Use environment variable, or window.location.origin for production (same origin), or default to localhost
-const API_BASE_URL =
+export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   (typeof window !== 'undefined' && window.location.origin !== 'http://localhost:5173'
     ? window.location.origin

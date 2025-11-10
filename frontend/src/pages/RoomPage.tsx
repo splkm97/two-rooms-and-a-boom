@@ -28,6 +28,7 @@ import {
   castVote,
   getCurrentVote,
   APIError,
+  API_BASE_URL,
 } from '../services/api';
 import type {
   Player,
@@ -803,7 +804,7 @@ export function RoomPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:8080/api/v1/rooms/${room.code}/hostages/select`,
+        `${API_BASE_URL}/api/v1/rooms/${room.code}/hostages/select`,
         {
           method: 'POST',
           headers: {
@@ -834,7 +835,7 @@ export function RoomPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:8080/api/v1/rooms/${room.code}/rounds/ready`,
+        `${API_BASE_URL}/api/v1/rooms/${room.code}/rounds/ready`,
         {
           method: 'POST',
           headers: {
