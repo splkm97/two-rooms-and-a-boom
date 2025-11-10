@@ -230,7 +230,7 @@ export function RoomList({
           width: '100%',
         }}
       >
-        {rooms.map((room) => (
+        {rooms.filter(Boolean).map((room) => (
           <RoomListItem key={room.code} room={room} onJoin={onJoin} />
         ))}
       </div>

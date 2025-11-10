@@ -232,7 +232,7 @@ export function LeaderPanel({
           borderRadius: '6px',
         }}
       >
-        {players.map((player) => {
+        {players.filter(Boolean).map((player) => {
           const isSelected = selectedHostages.has(player.id);
           const isSelf = player.id === currentPlayerId;
 

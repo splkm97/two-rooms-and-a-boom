@@ -186,7 +186,7 @@ export function LeaderTransferModal({
                   <p>방에 다른 플레이어가 없습니다</p>
                 </div>
               ) : (
-                eligiblePlayers.map((player) => (
+                eligiblePlayers.filter(Boolean).map((player) => (
                   <label
                     key={player.id}
                     style={{

@@ -315,6 +315,7 @@ export function RoundTimerPanel({
                 }}
               >
                 {playersInMyRoom
+                  .filter(Boolean)
                   .filter((p) => p.id !== currentPlayerId)
                   .map((player) => (
                     <label
@@ -457,7 +458,7 @@ export function RoundTimerPanel({
               borderRadius: '6px',
             }}
           >
-            {playersInMyRoom.map((player) => {
+            {playersInMyRoom.filter(Boolean).map((player) => {
               const isSelected = selectedHostages.has(player.id);
               const isSelf = player.id === currentPlayerId;
               const isLeader =

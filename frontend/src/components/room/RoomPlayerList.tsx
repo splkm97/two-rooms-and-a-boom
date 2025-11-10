@@ -28,7 +28,7 @@ export function RoomPlayerList({ players, roomColor, currentPlayerId, leaderId }
       </h3>
 
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-        {players.map((player) => (
+        {players.filter(Boolean).map((player) => (
           <li
             key={player.id}
             style={{

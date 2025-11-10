@@ -106,7 +106,7 @@ export function RevealPage({ players, roomCode }: RevealPageProps) {
             gap: 'clamp(0.75rem, 2vw, 1rem)',
           }}
         >
-          {roomPlayers.map((player) => {
+          {roomPlayers.filter(Boolean).map((player) => {
             const isSpecial =
               player.role?.id === 'president' || player.role?.id === 'bomber';
 
@@ -181,7 +181,7 @@ export function RevealPage({ players, roomCode }: RevealPageProps) {
                         lineHeight: 1.4,
                       }}
                     >
-                      {player.role.descriptionKo}
+                      {player.role?.descriptionKo}
                     </div>
                   )}
                 </div>

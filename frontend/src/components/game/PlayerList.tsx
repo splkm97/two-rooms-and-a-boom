@@ -26,7 +26,7 @@ export function PlayerList({ players, currentPlayerId }: PlayerListProps) {
         </p>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-          {players.map((player) => (
+          {players.filter(Boolean).map((player) => (
             <li
               key={player.id}
               style={{
